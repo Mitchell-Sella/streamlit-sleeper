@@ -20,6 +20,15 @@ def get_trades_for_user(league_id, user_id):
         return user_trades
     else:
         return None
+    
+@st.cache_data
+def get_players():
+    url = "https://api.sleeper.app/v1/players/nfl"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
 
 def main():
     st.title('Sleeper League Users and Trades Viewer')
