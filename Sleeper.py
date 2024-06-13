@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 
+
 def get_user_id(username):
     base_url = 'https://api.sleeper.app'
     endpoint = f'/v1/user/{username}'
@@ -12,11 +13,13 @@ def get_user_id(username):
 
 
 def run():
+    """
+    Main function for Hello World.
+    """
     st.set_page_config(
         page_title="Home",
         page_icon="https://sleeper.com/favicon.ico",
     )
-
 
 
 if __name__ == "__main__":
