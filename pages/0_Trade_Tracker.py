@@ -31,6 +31,11 @@ def get_players():
         return None
 
 def main():
+    st.set_page_config(
+        page_title="Trade Tracker",
+        page_icon="https://sleeper.com/favicon.ico",
+    )
+
     st.title('Sleeper League Users and Trades Viewer')
 
     league_id = st.text_input('Enter League ID:')
