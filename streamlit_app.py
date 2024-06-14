@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-import sleeper_wrapper
+from sleeper_wrapper import User
 
 
 def run():
@@ -12,7 +12,7 @@ def run():
         page_icon="https://sleeper.com/favicon.ico",
     )
 
-    user = sleeper_wrapper.User("TheEvilNarwhal")
+    user = User("TheEvilNarwhal")
     leagues = user.get_all_leagues(sport="nfl", season="2023")
     print(leagues)
 
