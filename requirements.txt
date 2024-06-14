@@ -1,6 +1,5 @@
-altair
 numpy
 pandas
 pydeck
 streamlit
-requests
+sleeper-api-wrapper

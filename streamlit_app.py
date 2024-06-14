@@ -1,16 +1,11 @@
 import streamlit as st
 import requests
+import sleeper_wrapper
 
 
-def get_user_id(username):
-    base_url = 'https://api.sleeper.app'
-    endpoint = f'/v1/user/{username}'
-    response = requests.get(base_url + endpoint)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        return None
-
+user = sleeper_wrapper.User("TheEvilNarwhal")
+leagues = user.get_all_leagues(sport="nfl", season="2023")
+print(leagues)
 
 def run():
     """

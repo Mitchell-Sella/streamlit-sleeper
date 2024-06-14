@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 
+
 def get_users_in_league(league_id):
     base_url = 'https://api.sleeper.app'
     endpoint = f'/v1/league/{league_id}/users'
@@ -9,6 +10,7 @@ def get_users_in_league(league_id):
         return response.json()
     else:
         return None
+
 
 def get_trades_for_user(league_id, user_id):
     base_url = 'https://api.sleeper.app'
@@ -21,7 +23,7 @@ def get_trades_for_user(league_id, user_id):
     else:
         return None
     
-@st.cache_data
+
 def get_players():
     url = "https://api.sleeper.app/v1/players/nfl"
     response = requests.get(url)
@@ -29,6 +31,7 @@ def get_players():
         return response.json()
     else:
         return None
+
 
 def main():
     st.set_page_config(
