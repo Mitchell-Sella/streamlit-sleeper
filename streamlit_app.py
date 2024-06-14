@@ -13,7 +13,7 @@ def run():
     )
 
     user = User("TheEvilNarwhal")
-    leagues = user.get_all_leagues(sport="nfl", season="2023")
+    leagues = user.get_all_leagues(sport="nfl", season=2023)
     print(leagues)
 
 
