@@ -1,6 +1,6 @@
 # Streamlit App for Viewing Sleeper Fantasy Football League Data
 
-This Streamlit application allows users to view data from Sleeper fantasy football leagues, specifically focusing on trade activities. The app leverages the [sleeper-api-wrapper](https://github.com/SwapnikKatkoori/sleeper-api-wrapper) to interact with Sleeper's API and retrieve relevant data.
+This Streamlit application allows users to view data from Sleeper fantasy football leagues, specifically focusing on trade activities. The app leverages the [sleeper-api-wrapper](https://github.com/dtsong/sleeper-api-wrapper) to interact with Sleeper's API and retrieve relevant data.
 
 ## Features
 
@@ -48,8 +48,8 @@ Contributions are welcome! Please fork the repository and submit a pull request.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](https://github.com/Mitchell-Sella/streamlit-sleeper/blob/main/LICENSE.md).
 
 ## Contact
 
-For any questions or issues, please contact [[msella64g@gmail.com](mailto:msella64g@gmail.com)] or open an issue on GitHub.
+For any questions or issues, please contact [msella64g@gmail.com](mailto:msella64g@gmail.com) or open an issue on GitHub.
