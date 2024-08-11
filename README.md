@@ -8,7 +8,7 @@ This Streamlit application allows users to view data from Sleeper fantasy footba
 
 ## Prerequisites
 
-- Python 3.7 or later
+- Python 3.8 or later
 - Streamlit
 - Sleeper API Wrapper
 
