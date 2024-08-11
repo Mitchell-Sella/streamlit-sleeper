@@ -32,7 +32,7 @@ This Streamlit application allows users to view data from Sleeper fantasy footba
 1. **Run the App**:
    Start the Streamlit app by running the following command in your terminal:
    ```bash
-   streamlit run app.py
+   streamlit run Home.py
    ```
 
 2. **Input League ID**:
