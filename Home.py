@@ -3,7 +3,7 @@ from sleeper_wrapper import User
 
 def run():
     """
-    Main function for Hello World.
+    Main function for home page.
     """
     # Set page config
     st.set_page_config(
@@ -15,14 +15,18 @@ def run():
 
     st.text_input(label="Enter Sleeper Username:", key="username")
     if st.session_state.username != "":
-        user = User(st.session_state.username)
-        leagues = user.get_all_leagues(sport="nfl", season=2024)
-        st.session_state.leagues = [league['name'] for league in leagues]
-        st.session_state.league_ids = [league['league_id'] for league in leagues]
-        st.session_state.league_id_map = {league['name']: league['league_id'] for league in leagues}
-        st.selectbox(label="Select League", options=st.session_state.leagues, key="league")
-        st.session_state.league_id = st.session_state.league_id_map[st.session_state.league]
-        st.write(st.session_state.league_id)
+        st.session_state.user = User(st.session_state.username)
+        leagues = st.session_state.user.get_all_leagues(sport="nfl", season=2024)
+        # Create a dictionary of league names to league IDs
+        league_dict = {league['name']: league['league_id'] for league in leagues}
+
+        # Use the dictionary keys (league names) for the selectbox options
+        st.selectbox("Select League", options=list(league_dict.keys()), key="selected_league")
+
+        # Get the league ID based on the selected league name
+        st.session_state.league_id = league_dict[st.session_state.selected_league]
+
+        st.write(f"Selected League ID: {st.session_state.league_id}")
 
 
 if __name__ == "__main__":
