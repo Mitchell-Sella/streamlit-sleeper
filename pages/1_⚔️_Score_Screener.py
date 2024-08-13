@@ -1,8 +1,5 @@
 import streamlit as st
 
-# Set page configuration
-st.set_page_config(page_title="Under Construction", page_icon="🚧")
-
 # Add custom CSS
 st.markdown("""
     <style>
