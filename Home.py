@@ -1,7 +1,5 @@
 import streamlit as st
-import requests
 from sleeper_wrapper import User
-
 
 def run():
     """
@@ -12,9 +10,18 @@ def run():
         page_icon="https://sleeper.com/favicon.ico",
     )
 
-    user = User("TheEvilNarwhal")
-    leagues = user.get_all_leagues(sport="nfl", season=2023)
-    print(leagues)
+    st.image("https://sleepercdn.com/images/v2/logos/logo_with_text_2.png")
+
+    st.text_input(label="Enter Sleeper Username:", key="username")
+    if st.session_state.username != "":
+        user = User(st.session_state.username)
+        leagues = user.get_all_leagues(sport="nfl", season=2024)
+        st.session_state.leagues = [league['name'] for league in leagues]
+        st.session_state.league_ids = [league['league_id'] for league in leagues]
+        st.session_state.league_id_map = {league['name']: league['league_id'] for league in leagues}
+        st.selectbox(label="Select League", options=st.session_state.leagues, key="league")
+        st.session_state.league_id = st.session_state.league_id_map[st.session_state.league]
+        st.write(st.session_state.league_id)
 
 
 if __name__ == "__main__":
