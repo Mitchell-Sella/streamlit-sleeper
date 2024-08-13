@@ -1,5 +1,11 @@
 import streamlit as st
 
+# Set page config
+st.set_page_config(
+    page_title="Trade Tracker",
+    page_icon="https://sleeper.com/favicon.ico",
+)
+
 # Add custom CSS
 st.markdown("""
     <style>

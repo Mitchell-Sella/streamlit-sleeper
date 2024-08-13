@@ -1,5 +1,11 @@
 import streamlit as st
 
+# Set page config
+st.set_page_config(
+    page_title="Playoff Forecaster",
+    page_icon="https://sleeper.com/favicon.ico",
+)
+
 # Add custom CSS
 st.markdown("""
     <style>

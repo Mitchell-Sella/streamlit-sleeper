@@ -5,6 +5,7 @@ def run():
     """
     Main function for Hello World.
     """
+    # Set page config
     st.set_page_config(
         page_title="Home",
         page_icon="https://sleeper.com/favicon.ico",
