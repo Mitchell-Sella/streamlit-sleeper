@@ -16,6 +16,8 @@ import inspect
 import textwrap
 
 import streamlit as st
+from streamlit.runtime.scriptrunner import RerunData, RerunException
+from streamlit.source_util import get_pages
 
 
 def show_code(demo):
@@ -26,3 +28,16 @@ def show_code(demo):
         st.markdown("## Code")
         sourcelines, _ = inspect.getsourcelines(demo)
         st.code(textwrap.dedent("".join(sourcelines[1:])))
+
+def check_user():
+    if 'username' not in st.session_state or st.session_state.username == "":
+        # Get the script path of the home page
+        pages = get_pages("Home.py")  # Use the actual filename of your home page
+        for page_hash, page in pages.items():
+            if page["page_name"] == "Home":
+                raise RerunException(
+                    RerunData(
+                        page_script_hash=page_hash,
+                        page_name=page["page_name"],
+                    )
+                )
