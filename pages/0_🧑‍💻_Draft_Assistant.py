@@ -3,7 +3,8 @@ from sleeper_wrapper import User, League, Drafts
 
 st.title("Draft Assistant")
 league = League(st.session_state.league_id)
-draft_ids = league.get_all_drafts()
+drafts = league.get_all_drafts()
+draft_ids = [draft['draft_id'] for draft in drafts]
 
 draft_id = st.selectbox("Select League", options=draft_ids)
 
