@@ -14,6 +14,7 @@
 
 import inspect
 import textwrap
+from datetime import datetime
 
 import streamlit as st
 from streamlit.runtime.scriptrunner import RerunData, RerunException
@@ -30,7 +31,7 @@ def show_code(demo):
         st.code(textwrap.dedent("".join(sourcelines[1:])))
 
 def check_user():
-    if st.session_state.username == "":
+    if "username" not in st.session_state or st.session_state.username == "":
         # Get the script path of the home page
         pages = get_pages("Home.py")  # Use the actual filename of your home page
         for page_hash, page in pages.items():
@@ -41,3 +42,7 @@ def check_user():
                         page_name=page["page_name"],
                     )
                 )
+
+# Function to format the timestamp
+def format_timestamp(timestamp):
+    return datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
