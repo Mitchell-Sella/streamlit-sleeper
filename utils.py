@@ -30,7 +30,7 @@ def show_code(demo):
         st.code(textwrap.dedent("".join(sourcelines[1:])))
 
 def check_user():
-    if 'username' not in st.session_state or st.session_state.username == "":
+    if st.session_state.username == "":
         # Get the script path of the home page
         pages = get_pages("Home.py")  # Use the actual filename of your home page
         for page_hash, page in pages.items():
