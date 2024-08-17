@@ -10,11 +10,11 @@ draft_assistant = st.Page(
 )
 
 draft_reviewer = st.Page(
-    "draft/draft_reviewer.py", title="Draft Reviewer", icon=":material/dashboard:", default=True
+    "draft/draft_reviewer.py", title="Draft Reviewer", icon=":material/dashboard:"
 )
 
 guillotine = st.Page(
-    "in-season/guillotine.py", title="Guillotine", icon=":material/dashboard:", default=True
+    "in-season/guillotine.py", title="Guillotine", icon=":material/dashboard:"
 )
 
 pg = st.navigation(
