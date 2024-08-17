@@ -49,11 +49,11 @@ if username != "":
                 draft = Drafts(selected_draft_id)
                 picks = draft.get_all_picks()
                 user_picks = [
-                    f"{pick['pick_no']} - {pick['metadata']['first_name']} {pick['metadata']['last_name']}"
+                    [f"{pick['round']}.{pick['draft_slot']:02}", f"{pick['metadata']['first_name']} {pick['metadata']['last_name']}"]
                     for pick in picks if pick['picked_by'] == user.get_user_id()]
                 st.write("Draft picks:")
 
-                st.json(user_picks)
+                st.table(user_picks)
 
 
 # draft_id = 1113489154534469633

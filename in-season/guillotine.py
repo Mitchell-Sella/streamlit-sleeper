@@ -2,7 +2,7 @@ import streamlit as st
 
 # Set page config
 st.set_page_config(
-    page_title="Score Screener",
+    page_title="Guillotine",
     page_icon="https://sleeper.com/favicon.ico",
 )
 

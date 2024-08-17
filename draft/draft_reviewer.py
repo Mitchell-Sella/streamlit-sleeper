@@ -2,7 +2,7 @@ import streamlit as st
 
 # Set page config
 st.set_page_config(
-    page_title="Playoff Forecaster",
+    page_title="Draft Reviewer",
     page_icon="https://sleeper.com/favicon.ico",
 )
 
