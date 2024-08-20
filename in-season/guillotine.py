@@ -1,11 +1,5 @@
 import streamlit as st
 
-# Set page config
-st.set_page_config(
-    page_title="Guillotine",
-    page_icon="https://sleeper.com/favicon.ico",
-)
-
 # Add custom CSS
 st.markdown("""
     <style>
