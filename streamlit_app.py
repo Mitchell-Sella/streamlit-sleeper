@@ -34,7 +34,7 @@ def update_username():
     """
     new_username = st.session_state.temp_username
     if check_username_exists(new_username):
-        st.session_state.persistent_data['user_name'] = new_username
+        st.session_state.perm['user_name'] = new_username
         st.session_state.username_valid = True
     else:
         st.session_state.username_valid = False
@@ -44,22 +44,22 @@ def select_league():
     """
     Create select box object for user to select league.
     """
-    if st.session_state.persistent_data['user_name']:
-        user = User(st.session_state.persistent_data['user_name'])
+    if st.session_state.perm['user_name']:
+        user = User(st.session_state.perm['user_name'])
         leagues = user.get_all_leagues(sport="nfl", season=2024)
         league_dict = {league['name']: league['league_id'] for league in leagues}
-        league_name = st.selectbox("Select league", options=[""] + list(league_dict.keys()))
+        league_name = st.selectbox(":football: Select League", options=[""] + list(league_dict.keys()))
         if league_name != "":
-            st.session_state.persistent_data['league_name'] = league_name
-            st.session_state.persistent_data['league_id'] = league_dict[league_name]
+            st.session_state.perm['league_name'] = league_name
+            st.session_state.perm['league_id'] = league_dict[league_name]
 
 
 # Sidebar for user input and league selection
 with st.sidebar:
     st.text_input(
-        label="Enter Sleeper username",
+        label=":bust_in_silhouette: Enter Username",
         key="temp_username",
-        value=st.session_state.persistent_data['user_name'],
+        value=st.session_state.perm['user_name'],
         on_change=update_username
     )
 
@@ -74,21 +74,27 @@ draft_assistant = st.Page(
     "draft/draft_assistant.py", title="Draft Assistant", icon=":material/psychology_alt:", default=True
 )
 
-# Create draft reviewer page object
-draft_reviewer = st.Page(
-    "draft/draft_reviewer.py", title="Draft Reviewer", icon=":material/dashboard:"
+# Create guillotine page object
+guillotine_dashboard = st.Page(
+    "in-season/guillotine_dashboard.py", title="Guillotine Dashboard", icon=":material/content_cut:"
 )
 
-# Create guillotine page object
-guillotine = st.Page(
-    "in-season/guillotine.py", title="Guillotine", icon=":material/content_cut:"
+# Rankings builder
+rankings_builder = st.Page(
+    "tools/rankings_builder.py", title="Rankings Builder", icon=":material/format_list_numbered:"
+)
+
+# Scoring simulator
+scoring_simulator = st.Page(
+    "tools/scoring_simulator.py", title="Scoring Simulator", icon=":material/tune:"
 )
 
 # Create page navigation structure
 pg = st.navigation(
     {
-        "Draft": [draft_assistant, draft_reviewer],
-        "In-Season": [guillotine],
+        "Draft": [draft_assistant],
+        "In-Season": [guillotine_dashboard],
+        "Tools": [rankings_builder, scoring_simulator],
     }
 )
 

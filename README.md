@@ -1,10 +1,11 @@
-# Streamlit App for Viewing Sleeper Fantasy Football League Data
+# Streamlit App 
 
 This Streamlit application allows users to view data from Sleeper fantasy football leagues, specifically focusing on trade activities. The app leverages the [sleeper-api-wrapper](https://github.com/dtsong/sleeper-api-wrapper) to interact with Sleeper's API and retrieve relevant data.
 
 ## Features
 
-- **Trade Tracker**
+- **Draft Assistant**
+- **Guillotine Dashboard**
 
 ## Prerequisites
 
@@ -36,7 +37,7 @@ This Streamlit application allows users to view data from Sleeper fantasy footba
    ```
 
 2. **Input League ID**:
-   Once the app is running, input the league ID of the Sleeper league you wish to analyze.
+   Once the app is running, input the Sleeper username and select the league you wish to analyze.
 
 ## Configuration
 
