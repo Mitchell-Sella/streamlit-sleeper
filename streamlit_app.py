@@ -11,7 +11,6 @@ st.set_page_config(
 # Initialize session state
 init_session_state()
 
-# SSH test from PyCharm
 
 def check_username_exists(username):
     """
@@ -70,20 +69,20 @@ with st.sidebar:
         else:
             st.error(f"'{st.session_state.temp_username}' is not a Sleeper username.")
 
-# # Create draft assistant page object
-# draft_assistant = st.Page(
-#     "draft/draft_assistant.py", title="Draft Assistant", icon=":material/psychology_alt:", default=True
-# )
-#
-# # Create guillotine page object
-# guillotine_dashboard = st.Page(
-#     "in-season/guillotine_dashboard.py", title="Guillotine Dashboard", icon=":material/content_cut:"
-# )
-#
-# # Rankings builder
-# rankings_builder = st.Page(
-#     "tools/rankings_builder.py", title="Rankings Builder", icon=":material/format_list_numbered:"
-# )
+# Create draft assistant page object
+draft_assistant = st.Page(
+    "draft/draft_assistant.py", title="Draft Assistant", icon=":material/psychology_alt:", default=True
+)
+
+# Create guillotine page object
+guillotine_dashboard = st.Page(
+    "in-season/guillotine_dashboard.py", title="Guillotine Dashboard", icon=":material/content_cut:"
+)
+
+# Rankings builder
+rankings_builder = st.Page(
+    "tools/rankings_builder.py", title="Rankings Builder", icon=":material/format_list_numbered:"
+)
 
 # Scoring simulator
 scoring_simulator = st.Page(
@@ -91,18 +90,11 @@ scoring_simulator = st.Page(
 )
 
 # Create page navigation structure
-# pg = st.navigation(
-#     {
-#         "Draft": [draft_assistant],
-#         "In-Season": [guillotine_dashboard],
-#         "Tools": [rankings_builder, scoring_simulator],
-#     }
-# )
-
-# Create page navigation
 pg = st.navigation(
     {
-        "Tools": [scoring_simulator],
+        "Draft": [draft_assistant],
+        "In-Season": [guillotine_dashboard],
+        "Tools": [rankings_builder, scoring_simulator],
     }
 )
 
