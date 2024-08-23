@@ -1,11 +1,37 @@
 import streamlit as st
-import pandas as pd
-from sleeper_wrapper import User, League, Drafts
-from utils import load_players
 
-# Page title
-st.title("Draft Assistant")
+# Add custom CSS
+st.markdown("""
+    <style>
+    .big-font {
+        font-size:50px !important;
+        font-weight: bold;
+        color: #FF9633;
+        text-align: center;
+    }
+    .medium-font {
+        font-size:30px !important;
+        color: #808080;
+        text-align: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
+# Display the under construction message
+st.markdown('<p class="big-font">🚧 Under Construction 🚧</p>', unsafe_allow_html=True)
+st.markdown('<p class="medium-font">We\'re working hard to bring you something amazing!</p>', unsafe_allow_html=True)
+
+# Add additional information
+st.info("Check back soon for updates!")
+
+# import streamlit as st
+# import pandas as pd
+# from sleeper_wrapper import User, League, Drafts
+# from utils import load_players
+#
+# # Page title
+# st.title("Draft Assistant")
+#
 # if st.session_state.perm['user_name'] == "" or st.session_state.perm['league_name'] == "":
 #     st.warning("Please select a username and league on the sidebar.")
 # else:
@@ -37,8 +63,8 @@ st.title("Draft Assistant")
 #                 for pick in picks if pick['picked_by'] == user.get_user_id()]
 #             st.write("Draft picks:")
 #             st.table(user_picks)
-
-
+#
+#
 # def format_timestamp(timestamp):
 #     """
 #     Format timestamp to string.
