@@ -98,6 +98,7 @@ scoring_simulator = st.Page(
 #     }
 # )
 
+# Create page navigation
 pg = st.navigation(
     {
         "Tools": [scoring_simulator],
