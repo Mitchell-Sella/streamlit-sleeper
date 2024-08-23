@@ -12,62 +12,62 @@ st.set_page_config(
 init_session_state()
 
 
-def check_username_exists(username):
-    """
-    Check if username exists in Sleeper API.
-    :param username: username to check
-    :type username: str
-    :return: True if username exists in Sleeper API, else False
-    :rtype: bool
-    """
-    try:
-        user = User(username)
-        user_data = user.get_user()
-        return user_data is not None and user_data != {}
-    except:
-        return False
-
-
-def update_username():
-    """
-    Update username in session state if username exists in Sleeper API.
-    """
-    new_username = st.session_state.temp_username
-    if check_username_exists(new_username):
-        st.session_state.perm['user_name'] = new_username
-        st.session_state.username_valid = True
-    else:
-        st.session_state.username_valid = False
-
-
-def select_league():
-    """
-    Create select box object for user to select league.
-    """
-    if st.session_state.perm['user_name']:
-        user = User(st.session_state.perm['user_name'])
-        leagues = user.get_all_leagues(sport="nfl", season=2024)
-        league_dict = {league['name']: league['league_id'] for league in leagues}
-        league_name = st.selectbox(":football: Select League", options=[""] + list(league_dict.keys()))
-        if league_name != "":
-            st.session_state.perm['league_name'] = league_name
-            st.session_state.perm['league_id'] = league_dict[league_name]
-
-
-# Sidebar for user input and league selection
-with st.sidebar:
-    st.text_input(
-        label=":bust_in_silhouette: Enter Username",
-        key="temp_username",
-        value=st.session_state.perm['user_name'],
-        on_change=update_username
-    )
-
-    if 'username_valid' in st.session_state:
-        if st.session_state.username_valid:
-            select_league()
-        else:
-            st.error(f"'{st.session_state.temp_username}' is not a Sleeper username.")
+# def check_username_exists(username):
+#     """
+#     Check if username exists in Sleeper API.
+#     :param username: username to check
+#     :type username: str
+#     :return: True if username exists in Sleeper API, else False
+#     :rtype: bool
+#     """
+#     try:
+#         user = User(username)
+#         user_data = user.get_user()
+#         return user_data is not None and user_data != {}
+#     except:
+#         return False
+#
+#
+# def update_username():
+#     """
+#     Update username in session state if username exists in Sleeper API.
+#     """
+#     new_username = st.session_state.temp_username
+#     if check_username_exists(new_username):
+#         st.session_state.perm['user_name'] = new_username
+#         st.session_state.username_valid = True
+#     else:
+#         st.session_state.username_valid = False
+#
+#
+# def select_league():
+#     """
+#     Create select box object for user to select league.
+#     """
+#     if st.session_state.perm['user_name']:
+#         user = User(st.session_state.perm['user_name'])
+#         leagues = user.get_all_leagues(sport="nfl", season=2024)
+#         league_dict = {league['name']: league['league_id'] for league in leagues}
+#         league_name = st.selectbox(":football: Select League", options=[""] + list(league_dict.keys()))
+#         if league_name != "":
+#             st.session_state.perm['league_name'] = league_name
+#             st.session_state.perm['league_id'] = league_dict[league_name]
+#
+#
+# # Sidebar for user input and league selection
+# with st.sidebar:
+#     st.text_input(
+#         label=":bust_in_silhouette: Enter Username",
+#         key="temp_username",
+#         value=st.session_state.perm['user_name'],
+#         on_change=update_username
+#     )
+#
+#     if 'username_valid' in st.session_state:
+#         if st.session_state.username_valid:
+#             select_league()
+#         else:
+#             st.error(f"'{st.session_state.temp_username}' is not a Sleeper username.")
 
 # Create draft assistant page object
 draft_assistant = st.Page(
