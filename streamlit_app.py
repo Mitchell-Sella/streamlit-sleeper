@@ -56,19 +56,18 @@ def select_league():
 
 # Sidebar for user input and league selection
 with st.sidebar:
-    with st.popover("Sleeper Sign-in"):
-        st.text_input(
-            label=":bust_in_silhouette: Enter Username",
-            key="temp_username",
-            value=st.session_state.perm['user_name'],
-            on_change=update_username
-        )
+    st.text_input(
+        label=":bust_in_silhouette: Enter Username",
+        key="temp_username",
+        value=st.session_state.perm['user_name'],
+        on_change=update_username
+    )
 
-        if 'username_valid' in st.session_state:
-            if st.session_state.username_valid:
-                select_league()
-            else:
-                st.error(f"'{st.session_state.temp_username}' is not a Sleeper username.")
+    if 'username_valid' in st.session_state:
+        if st.session_state.username_valid:
+            select_league()
+        else:
+            st.error(f"'{st.session_state.temp_username}' is not a Sleeper username.")
 
 # Create draft assistant page object
 draft_assistant = st.Page(
