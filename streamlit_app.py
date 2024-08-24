@@ -81,7 +81,7 @@ guillotine_dashboard = st.Page(
 
 # Create bizzaro page object
 bizzaro_dashboard = st.Page(
-    "in-season/bizarro_dashboard.py", title="Bizzaro Dashboard", icon=":material/delete:"
+    "in-season/bizzaro_dashboard.py", title="Bizzaro Dashboard", icon=":material/delete:"
 )
 
 # Rankings builder
