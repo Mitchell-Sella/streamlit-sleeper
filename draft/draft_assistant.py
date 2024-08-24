@@ -12,8 +12,6 @@ else:
     user = User(st.session_state.perm['user_name'])
     drafts = user.get_all_drafts(sport="nfl", season=2024)
 
-    st.write(players)
-
     # Create a list of options for the dropdown
     options = [
         f"{format_timestamp(draft['start_time'])} - {draft['status']} (ID: {draft['draft_id']})"
