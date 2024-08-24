@@ -14,6 +14,8 @@ def init_session_state():
             "draft_id": "",
             "rankings": pd.DataFrame(columns=['player_id', 'full_name', 'position', 'team_abbr', 'rank', 'tier', 'salary_cap']),
         }
+    if "temp_username" not in st.session_state:
+        st.session_state.temp_username = ""
 
 
 @st.cache_data
