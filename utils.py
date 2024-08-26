@@ -17,13 +17,8 @@ def init_session_state():
     if "temp_username" not in st.session_state:
         st.session_state.temp_username = ""
 
-def create_header():
-    with st.container():
-        col1, col2 = st.columns(2)
-        with col1:
-            st.text_input("Field 1")
-        with col2:
-            st.text_input("Field 2")
+def rankings_uploader():
+    return
 
 
 @st.cache_data

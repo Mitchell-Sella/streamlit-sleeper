@@ -74,16 +74,6 @@ draft_assistant = st.Page(
     "draft/draft_assistant.py", title="Draft Assistant", icon=":material/psychology_alt:", default=True
 )
 
-# Create guillotine page object
-guillotine_dashboard = st.Page(
-    "in-season/guillotine_dashboard.py", title="Guillotine Dashboard", icon=":material/content_cut:"
-)
-
-# Create bizzaro page object
-bizzaro_dashboard = st.Page(
-    "in-season/bizzaro_dashboard.py", title="Bizzaro Dashboard", icon=":material/delete:"
-)
-
 # Rankings builder
 rankings_builder = st.Page(
     "tools/rankings_builder.py", title="Rankings Builder", icon=":material/format_list_numbered:"
@@ -98,7 +88,6 @@ scoring_simulator = st.Page(
 pg = st.navigation(
     {
         "Draft": [draft_assistant],
-        "In-Season": [guillotine_dashboard, bizzaro_dashboard],
         "Tools": [rankings_builder, scoring_simulator],
     }
 )
