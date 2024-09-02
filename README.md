@@ -1,56 +1,54 @@
-# Streamlit App 
+# Streamlit Sleeper
 
-This Streamlit application allows users to view data from Sleeper fantasy football leagues, specifically focusing on trade activities. The app leverages the [sleeper-api-wrapper](https://github.com/dtsong/sleeper-api-wrapper) to interact with Sleeper's API and retrieve relevant data.
+Streamlit Sleeper is a web application built using Streamlit that provides insights and analytics for fantasy football players using data from the Sleeper API.
 
 ## Features
 
-- **Draft Assistant**
-- **Guillotine Dashboard**
-
-## Prerequisites
-
-- Python 3.8 or later
-- Streamlit
-- Sleeper API Wrapper
+- **Draft Assistant**: Pull live Sleeper draft data and compare to custom rankings and tiers.
+- **Scoring Simulator**: View top scorers from previous seasons based on custom scoring formats.
 
 ## Installation
 
+To run the Streamlit Sleeper app locally, follow these steps:
+
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/mitchell-sella/streamlit-sleeper.git
-   cd streamlit-sleeper-app
+   git clone https://github.com/Mitchell-Sella/streamlit-sleeper.git
+   cd streamlit-sleeper
    ```
 
 2. **Install Dependencies**:
-   Ensure you have Streamlit and the Sleeper API Wrapper installed:
+   Ensure you have Python installed, then run:
    ```bash
-   pip install streamlit
-   pip install sleeper-api-wrapper
+   pip install -r requirements.txt
+   ```
+
+3. **Run the Application**:
+   Launch the Streamlit app with:
+   ```bash
+   streamlit run streamli_app.py
    ```
 
 ## Usage
 
-1. **Run the App**:
-   Start the Streamlit app by running the following command in your terminal:
-   ```bash
-   streamlit run Home.py
-   ```
-
-2. **Input League ID**:
-   Once the app is running, input the Sleeper username and select the league you wish to analyze.
-
-## Configuration
-
-- **API Configuration**: The app uses the `sleeper-api-wrapper` to fetch data.
+- Navigate to the app in your browser at `http://localhost:8501`.
+- Use the sidebar to filter and select players or teams.
+- View detailed statistics and visualizations on the main page.
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+Contributions are welcome! Please follow these steps to contribute:
+
+1. Fork the repository.
+2. Create a new branch for your feature or bugfix.
+3. Make your changes and commit them.
+4. Push your changes to your fork.
+5. Submit a pull request.
 
 ## License
 
-This project is licensed under the [MIT License](https://github.com/Mitchell-Sella/streamlit-sleeper/blob/main/LICENSE.md).
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
-For any questions or issues, please contact [msella64g@gmail.com](mailto:msella64g@gmail.com) or open an issue on GitHub.
+For questions or support, please open an issue on the [GitHub repository](https://github.com/Mitchell-Sella/streamlit-sleeper/issues).
