@@ -26,7 +26,7 @@ To run the Streamlit Sleeper app locally, follow these steps:
 3. **Run the Application**:
    Launch the Streamlit app with:
    ```bash
-   streamlit run streamli_app.py
+   streamlit run streamlit_app.py
    ```
 
 ## Usage
@@ -34,6 +34,7 @@ To run the Streamlit Sleeper app locally, follow these steps:
 - Navigate to the app in your browser at `http://localhost:8501`.
 - Use the sidebar to filter and select players or teams.
 - View detailed statistics and visualizations on the main page.
+- The app can also be found at `https://sleeper.streamlit.app/`.
 
 ## Contributing
 
