@@ -69,9 +69,65 @@ def show(analyzer):
         matrix.columns.name = "Accepter"
 
         # Display with heatmap style
-        st.dataframe(
+        event = st.dataframe(
             matrix.style.background_gradient(cmap='Blues', axis=None, vmax=vmax),
-            use_container_width=True
+            use_container_width=True,
+            on_select="rerun",
+            selection_mode=["single-row", "single-column"]
         )
+
+        # Handle selection
+        if event and event.selection.rows and event.selection.columns:
+            # Get selected row index and column name
+            row_idx = event.selection.rows[0]
+            col_name = event.selection.columns[0]
+
+            # Retrieve row name from index
+            # matrix.index is "Proposer", but includes "Total Accepted" at the end
+            row_name = matrix.index[row_idx]
+
+            # Map "Total" labels to wildcards
+            proposer = row_name if row_name != "Total Accepted" else None
+            accepter = col_name if col_name != "Total Proposed" else None
+
+            st.divider()
+            st.subheader("Selected Trades")
+
+            # Display context
+            p_display = proposer if proposer else "Any"
+            a_display = accepter if accepter else "Any"
+            st.write(f"Showing trades: **{p_display}** (Proposer) → **{a_display}** (Accepter)")
+
+            trades = analyzer.get_trades_between(proposer, accepter)
+
+            if trades:
+                trade_data = []
+                for txn in trades:
+                    # Format date
+                    ts = txn['created'] / 1000
+                    date_str = pd.to_datetime(ts, unit='s').strftime('%Y-%m-%d')
+
+                    # Participants
+                    roster_ids = txn.get('roster_ids', [])
+                    participants = [analyzer.roster_name_map.get(rid, f"Roster {rid}") for rid in roster_ids]
+
+                    # Assets
+                    assets = []
+                    adds = txn.get('adds') or {}
+                    for player_id in adds:
+                        name = analyzer.get_player_name(player_id)
+                        assets.append(name)
+
+                    trade_data.append({
+                        "Date": date_str,
+                        "Teams": ", ".join(participants),
+                        "Assets Moved": ", ".join(assets)
+                    })
+
+                df_trades = pd.DataFrame(trade_data)
+                st.dataframe(df_trades, use_container_width=True)
+            else:
+                st.info("No trades found matching selection.")
+
     else:
         st.info("No trades found to generate matrix.")
