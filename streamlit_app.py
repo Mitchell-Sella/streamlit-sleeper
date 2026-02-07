@@ -6,7 +6,7 @@ from services.analyzer import LeagueAnalyzer
 # Page config
 st.set_page_config(
     page_title="League Trade Explorer",
-    page_icon=":bar_chart:",
+    page_icon=":material/swap_horiz:",
     layout="wide"
 )
 
