@@ -79,6 +79,82 @@ class LeagueAnalyzer:
 
         return G
 
+    def get_trades_between(self, proposer, accepter):
+        """
+        Get list of trades between proposer (sender) and accepter (receiver).
+        If proposer or accepter is None, it acts as a wildcard.
+
+        'proposer' and 'accepter' are display names (strings).
+        """
+        trades = []
+
+        # Check if we have creators in any trade
+        has_creator = False
+        for txn in self.transactions:
+            if txn['type'] == 'trade' and txn.get('creator'):
+                has_creator = True
+                break
+
+        for txn in self.transactions:
+            if txn['type'] != 'trade':
+                continue
+
+            roster_ids = txn['roster_ids']
+            if not roster_ids or len(roster_ids) < 2:
+                continue
+
+            # Determine Proposer and Accepters for this transaction
+
+            # 1. Identify Proposer
+            proposer_name = None
+            accepter_names = []
+
+            creator_id = txn.get('creator')
+            proposer_rid = None
+
+            if has_creator and creator_id:
+                for rid in roster_ids:
+                    if self.roster_owner_map.get(rid) == creator_id:
+                        proposer_rid = rid
+                        break
+
+            if has_creator and proposer_rid:
+                # Asymmetric
+                proposer_name = self.roster_name_map.get(proposer_rid)
+
+                for rid in roster_ids:
+                    if rid == proposer_rid:
+                        continue
+                    accepter_names.append(self.roster_name_map.get(rid))
+
+                # Check match
+                # Case 1: Specific Proposer and Specific Accepter
+                # Case 2: Wildcard Proposer (None) -> match if Accepter matches any in list
+                # Case 3: Wildcard Accepter (None) -> match if Proposer matches
+
+                match_proposer = (proposer is None) or (proposer == proposer_name)
+                match_accepter = (accepter is None) or (accepter in accepter_names)
+
+                if match_proposer and match_accepter:
+                    trades.append(txn)
+
+            else:
+                # Symmetric (Fallback)
+                # In symmetric mode, there is no distinct "Proposer".
+                # Both parties are considered involved.
+                # If Proposer="A" and Accepter="B", we look for trade involving A and B.
+                # If Proposer="A" and Accepter=None, we look for trade involving A.
+
+                participants = [self.roster_name_map.get(rid) for rid in roster_ids]
+
+                has_p = (proposer is None) or (proposer in participants)
+                has_a = (accepter is None) or (accepter in participants)
+
+                if has_p and has_a:
+                     trades.append(txn)
+
+        return sorted(trades, key=lambda x: x['created'], reverse=True)
+
     def get_trade_matrix(self):
         """
         Returns a pandas DataFrame representing the trade matrix.
