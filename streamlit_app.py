@@ -5,7 +5,7 @@ from services.analyzer import LeagueAnalyzer
 
 # Page config
 st.set_page_config(
-    page_title="Sleeper Network Explorer",
+    page_title="League Trade Explorer",
     page_icon="🏈",
     layout="wide"
 )
@@ -68,7 +68,7 @@ def load_user_data():
 
 # Sidebar
 with st.sidebar:
-    st.title("Sleeper Network")
+    st.title("Sleeper Streamlit")
 
     st.text_input("Sleeper Username", key="username_input", on_change=load_user_data)
 
@@ -94,13 +94,10 @@ with st.sidebar:
                             history_map[l_data['season']] = lid
                     st.session_state.league_history_map = history_map
 
-                # Season Filter
-                available_seasons = sorted(list(history_map.keys()), reverse=True)
-                selected_seasons = st.multiselect("Filter Seasons", options=available_seasons, default=available_seasons)
-
+                # Automatically load all history
                 if st.button("Analyze League History"):
-                    # Map selected seasons back to IDs
-                    selected_ids = [history_map[s] for s in selected_seasons]
+                    # Use all available history IDs
+                    selected_ids = list(history_map.values())
                     load_data(selected_ids)
         else:
             st.warning("No leagues found for 2024. Try a different user?")

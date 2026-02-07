@@ -7,10 +7,11 @@ def show(analyzer):
     # 1. General Stats
     stats = analyzer.calculate_stats()
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.metric("Total Trades", stats.get('total_trades', 0))
+        st.caption("*Note: Total Trades may not match the matrix sum due to multi-team trades.*")
 
     with col2:
         most_active = stats.get('most_active_trader')
@@ -29,13 +30,6 @@ def show(analyzer):
                       f"{least_active['count']} trades")
         else:
             st.metric("Least Active", "N/A")
-
-    with col4:
-        days = stats.get('days_since_last_trade')
-        if days is not None:
-            st.metric("Days Since Trade", f"{days}")
-        else:
-            st.metric("Days Since Trade", "N/A")
 
     st.divider()
 
