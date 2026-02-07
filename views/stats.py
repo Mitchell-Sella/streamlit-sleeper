@@ -1,9 +1,9 @@
 import streamlit as st
-import pandas as pd
 
 def show(analyzer):
     st.header("League Stats")
 
+    # 1. General Stats
     stats = analyzer.calculate_stats()
 
     col1, col2, col3 = st.columns(3)
@@ -23,3 +23,20 @@ def show(analyzer):
     with col3:
         # Placeholder
         st.metric("Avg Trades/Week", f"{stats.get('total_trades', 0) / 18:.1f}" if stats.get('total_trades') else "0")
+
+    st.divider()
+
+    # 2. Trade Matrix
+    st.subheader("Trade Matrix")
+    st.caption("Number of trades between each pair of teams.")
+
+    matrix = analyzer.get_trade_matrix()
+
+    if not matrix.empty:
+        # Display with heatmap style
+        st.dataframe(
+            matrix.style.background_gradient(cmap='Blues', axis=None),
+            use_container_width=True
+        )
+    else:
+        st.info("No trades found to generate matrix.")

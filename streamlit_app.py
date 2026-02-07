@@ -90,19 +90,15 @@ with st.sidebar:
 
 # Main Area
 if st.session_state.analyzer:
-    from views import trade_network
     from views import trade_viewer
     from views import stats as stats_view
 
-    tab1, tab2, tab3 = st.tabs(["Trade Network", "Trade Log & Trees", "League Stats"])
+    tab1, tab2 = st.tabs(["Trade Log & Trees", "League Stats & Matrix"])
 
     with tab1:
-        trade_network.show(st.session_state.analyzer)
-
-    with tab2:
         trade_viewer.show(st.session_state.analyzer)
 
-    with tab3:
+    with tab2:
         stats_view.show(st.session_state.analyzer)
 
 else:

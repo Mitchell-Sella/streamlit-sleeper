@@ -1,5 +1,6 @@
 import unittest
 from services.analyzer import LeagueAnalyzer
+import pandas as pd
 
 class TestLeagueAnalyzer(unittest.TestCase):
 
@@ -12,43 +13,30 @@ class TestLeagueAnalyzer(unittest.TestCase):
             {'roster_id': 1, 'owner_id': 'u1'},
             {'roster_id': 2, 'owner_id': 'u2'},
         ]
-        # Trade 1: Owner1 gets P1.
-        # Trade 2: Owner1 trades P1 for P2.
         self.transactions = [
             {
                 'transaction_id': 't1',
                 'type': 'trade',
                 'roster_ids': [1, 2],
-                'adds': {'p1': 1}, # Owner1 gets p1
-                'drops': {'p1': 2},
+                'adds': {},
+                'drops': {},
                 'created': 1000
-            },
-            {
-                'transaction_id': 't2',
-                'type': 'trade',
-                'roster_ids': [1, 2],
-                'adds': {'p2': 1}, # Owner1 gets p2
-                'drops': {'p1': 1, 'p2': 2}, # Owner1 gives p1
-                'created': 2000
             }
         ]
         self.analyzer = LeagueAnalyzer(self.transactions, self.rosters, self.users)
 
-    def test_build_trade_tree(self):
-        # Focus on Roster 1 (Owner1) starting from t1
-        G = self.analyzer.build_trade_tree('t1', 1)
+    def test_get_trade_matrix(self):
+        matrix = self.analyzer.get_trade_matrix()
 
-        # Expect t1 -> t2 edge labeled 'p1'
-        self.assertTrue(G.has_edge('t1', 't2'))
-        # Check edge label if possible, but networkx stores data in dict
-        edge_data = G.get_edge_data('t1', 't2')
-        # Note: My implementation might overwrite label if multiple assets move?
-        # Current impl: G.add_edge(..., label=str(asset_id)) inside loop.
-        # If multiple assets move, it might overwrite or add parallel edges (if MultiDiGraph).
-        # Using DiGraph, subsequent add_edge calls update attributes.
-        # I should probably append to label or use a list.
-        # But for this test, p1 is the only asset.
-        self.assertEqual(edge_data['label'], 'p1')
+        self.assertIsInstance(matrix, pd.DataFrame)
+        self.assertEqual(matrix.shape, (2, 2))
+        self.assertIn('Owner1', matrix.index)
+        self.assertIn('Owner2', matrix.index)
+
+        # Check trade count
+        self.assertEqual(matrix.loc['Owner1', 'Owner2'], 1)
+        self.assertEqual(matrix.loc['Owner2', 'Owner1'], 1) # Symmetric
+        self.assertEqual(matrix.loc['Owner1', 'Owner1'], 0) # No self trade
 
 if __name__ == '__main__':
     unittest.main()
