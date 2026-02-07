@@ -6,7 +6,7 @@ from services.analyzer import LeagueAnalyzer
 # Page config
 st.set_page_config(
     page_title="League Trade Explorer",
-    page_icon="🏈",
+    page_icon=":bar_chart:",
     layout="wide"
 )
 
