@@ -32,7 +32,9 @@ def show(analyzer):
         for t in trades:
             # Format adds/drops for readability
             adds_str = ""
-            for pid, rid in t.get('adds', {}).items():
+            # Handle case where 'adds' is None
+            adds = t.get('adds') or {}
+            for pid, rid in adds.items():
                 owner = analyzer.roster_name_map.get(rid, f"Roster {rid}")
                 p_name = analyzer.get_player_name(pid)
                 adds_str += f"{owner} gets {p_name}; "
