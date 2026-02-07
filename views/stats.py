@@ -45,6 +45,10 @@ def show(analyzer):
     matrix = analyzer.get_trade_matrix()
 
     if not matrix.empty:
+        # Store original matrix for vmax calculation to avoid skewing colors
+        original_matrix = matrix.copy()
+        vmax = original_matrix.max().max() if not original_matrix.empty else 1
+
         # Calculate Totals
         # Row Sum = Total Sent (Proposals)
         matrix['Total Sent'] = matrix.sum(axis=1)
@@ -64,7 +68,7 @@ def show(analyzer):
         matrix.loc['Total Received', 'Total Sent'] = grand_total
 
         # Convert floats to ints (pandas sum might produce floats if any NaN, but we initialized with 0)
-        matrix = matrix.astype(int)
+        matrix = matrix.fillna(0).astype(int)
 
         st.info("Rows represent the **Proposer** (Sender). Columns represent the **Accepter** (Receiver).")
 
@@ -73,12 +77,17 @@ def show(analyzer):
         matrix.columns.name = "Accepter"
 
         # Display with heatmap style
-        # We might want to exclude the totals from the gradient so they don't skew the colors
-        # style.apply or subsetting can help.
-
+        # We use vmax based on individual trades so totals (which are large) don't skew the gradient
+        # Removing subset to ensure totals are visible (they will be dark blue, but visible)
         st.dataframe(
-            matrix.style.background_gradient(cmap='Blues', axis=None, subset=pd.IndexSlice[matrix.index[:-1], matrix.columns[:-1]]),
+            matrix.style.background_gradient(cmap='Blues', axis=None, vmax=vmax),
             use_container_width=True
         )
+
+        with st.expander("Debug Matrix Data"):
+            st.write("Matrix Shape:", matrix.shape)
+            st.write("Index:", matrix.index.tolist())
+            st.write("Columns:", matrix.columns.tolist())
+            st.dataframe(matrix) # Raw data
     else:
         st.info("No trades found to generate matrix.")
