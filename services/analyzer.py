@@ -1,5 +1,6 @@
 import networkx as nx
 from collections import defaultdict
+import pandas as pd
 
 class LeagueAnalyzer:
     def __init__(self, transactions, rosters, users, all_players=None):
@@ -76,6 +77,38 @@ class LeagueAnalyzer:
                         G.add_edge(name1, name2, count=1, transactions=[txn['transaction_id']])
 
         return G
+
+    def get_trade_matrix(self):
+        """
+        Returns a symmetric pandas DataFrame where rows and columns are team names,
+        and values are the number of trades between them.
+        """
+        team_names = sorted(list(self.roster_name_map.values()))
+        matrix = pd.DataFrame(0, index=team_names, columns=team_names)
+
+        for txn in self.transactions:
+            if txn['type'] != 'trade':
+                continue
+
+            roster_ids = txn['roster_ids']
+            if not roster_ids or len(roster_ids) < 2:
+                continue
+
+            # Iterate through all pairs in the trade
+            for i in range(len(roster_ids)):
+                for j in range(i + 1, len(roster_ids)):
+                    rid1 = roster_ids[i]
+                    rid2 = roster_ids[j]
+
+                    name1 = self.roster_name_map.get(rid1, f"Roster {rid1}")
+                    name2 = self.roster_name_map.get(rid2, f"Roster {rid2}")
+
+                    # Increment count in both directions (symmetric)
+                    if name1 in matrix.index and name2 in matrix.columns:
+                        matrix.loc[name1, name2] += 1
+                        matrix.loc[name2, name1] += 1
+
+        return matrix
 
     def get_player_path(self, player_id):
         """
