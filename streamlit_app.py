@@ -59,7 +59,7 @@ with st.sidebar:
                 st.session_state.user = user
                 # Fetch leagues - try recent years if 2024 fails
                 found_leagues = []
-                for year in ["2024", "2023", "2022"]:
+                for year in ["2025", "2024", "2023", "2022"]:
                     leagues = SleeperService.get_all_leagues(user['user_id'], season=year)
                     if leagues:
                         found_leagues = leagues
@@ -67,7 +67,7 @@ with st.sidebar:
 
                 st.session_state.leagues = found_leagues
                 if not found_leagues:
-                    st.warning("No recent leagues found (2022-2024).")
+                    st.warning("No recent leagues found (2022-2025).")
             else:
                 st.error("User not found.")
         else:
