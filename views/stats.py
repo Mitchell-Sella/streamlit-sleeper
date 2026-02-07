@@ -40,11 +40,20 @@ def show(analyzer):
 
     # 2. Trade Matrix
     st.subheader("Trade Matrix")
-    st.caption("Number of trades between each pair of teams.")
 
     matrix = analyzer.get_trade_matrix()
 
     if not matrix.empty:
+        # Determine caption based on matrix symmetry logic (assumed asymmetric if available)
+        # Note: We don't explicitly know here if it fell back to symmetric, but the generic
+        # "Rows = Proposer" is aspirational.
+
+        st.info("Rows represent the **Proposer** (Sender). Columns represent the **Accepter** (Receiver).")
+
+        # Rename axes for clarity
+        matrix.index.name = "Sender (Proposer)"
+        matrix.columns.name = "Accepter"
+
         # Display with heatmap style
         st.dataframe(
             matrix.style.background_gradient(cmap='Blues', axis=None),

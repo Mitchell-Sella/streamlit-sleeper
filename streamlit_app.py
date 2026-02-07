@@ -19,31 +19,29 @@ if 'selected_league' not in st.session_state:
     st.session_state.selected_league = None
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = None
+if 'league_history_map' not in st.session_state:
+    st.session_state.league_history_map = {}
 
-def load_data():
-    """Fetch data for selected league (and history) and initialize analyzer."""
-    if st.session_state.selected_league:
+def load_data(selected_league_ids):
+    """Fetch data for selected league IDs and initialize analyzer."""
+    if st.session_state.selected_league and selected_league_ids:
         league_id = st.session_state.selected_league['league_id']
 
-        with st.spinner("Fetching league history and data..."):
-            # 1. Fetch history
-            history_ids = SleeperService.get_league_history(league_id)
+        with st.spinner(f"Fetching data for {len(selected_league_ids)} seasons..."):
 
-            # 2. Fetch rosters & users (from current league mostly, but history matters for names?)
-            # Actually, names change. But we usually map to current owners or user IDs.
-            # For simplicity, use current league's roster/user map.
+            # 2. Fetch rosters & users (from current league mostly)
             rosters = SleeperService.get_rosters(league_id)
             users = SleeperService.get_users_in_league(league_id)
 
-            # 3. Fetch transactions for ALL leagues in history
-            transactions = SleeperService.get_all_transactions(history_ids)
+            # 3. Fetch transactions for SELECTED leagues in history
+            transactions = SleeperService.get_all_transactions(selected_league_ids)
 
             # 4. Fetch players
             all_players = SleeperService.get_all_players()
 
             # Initialize Analyzer
             st.session_state.analyzer = LeagueAnalyzer(transactions, rosters, users, all_players)
-            st.success(f"Loaded {len(history_ids)} seasons of data with {len(transactions)} transactions!")
+            st.success(f"Loaded data with {len(transactions)} transactions!")
 
 def load_user_data():
     """Callback to load user data when username changes."""
@@ -82,10 +80,28 @@ with st.sidebar:
             selected_league_name = st.selectbox("Select League", options=list(league_options.keys()))
 
             if selected_league_name:
-                st.session_state.selected_league = league_options[selected_league_name]
+                selected_league = league_options[selected_league_name]
+                st.session_state.selected_league = selected_league
 
-            if st.button("Analyze League History"):
-                load_data()
+                # Fetch history map if not already done for this league
+                # (Or refresh it every time to be safe)
+                with st.spinner("Finding league history..."):
+                    history_ids = SleeperService.get_league_history(selected_league['league_id'])
+                    history_map = {}
+                    for lid in history_ids:
+                        l_data = SleeperService.get_league(lid)
+                        if l_data:
+                            history_map[l_data['season']] = lid
+                    st.session_state.league_history_map = history_map
+
+                # Season Filter
+                available_seasons = sorted(list(history_map.keys()), reverse=True)
+                selected_seasons = st.multiselect("Filter Seasons", options=available_seasons, default=available_seasons)
+
+                if st.button("Analyze League History"):
+                    # Map selected seasons back to IDs
+                    selected_ids = [history_map[s] for s in selected_seasons]
+                    load_data(selected_ids)
         else:
             st.warning("No leagues found for 2024. Try a different user?")
 
