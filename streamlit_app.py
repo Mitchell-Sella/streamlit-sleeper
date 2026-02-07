@@ -1,97 +1,88 @@
 import streamlit as st
-# from sleeper_wrapper import User
-# from utils import init_session_state
+import pandas as pd
+from services.sleeper import SleeperService
+from services.analyzer import LeagueAnalyzer
 
-# Set page config
+# Page config
 st.set_page_config(
-    page_title="Sleeper",
-    page_icon="https://sleeper.com/favicon.ico",
+    page_title="Sleeper Network Explorer",
+    page_icon="🏈",
     layout="wide"
 )
 
-# # Initialize session state
-# init_session_state()
+# Initialize session state
+if 'user' not in st.session_state:
+    st.session_state.user = None
+if 'leagues' not in st.session_state:
+    st.session_state.leagues = []
+if 'selected_league' not in st.session_state:
+    st.session_state.selected_league = None
+if 'analyzer' not in st.session_state:
+    st.session_state.analyzer = None
 
+def load_data():
+    """Fetch data for selected league and initialize analyzer."""
+    if st.session_state.selected_league:
+        league_id = st.session_state.selected_league['league_id']
 
-# def check_username_exists(username):
-#     """
-#     Check if username exists in Sleeper API.
-#     :param username: username to check
-#     :type username: str
-#     :return: True if username exists in Sleeper API, else False
-#     :rtype: bool
-#     """
-#     try:
-#         user = User(username)
-#         user_data = user.get_user()
-#         return user_data is not None and user_data != {}
-#     except:
-#         return False
-#
-#
-# def update_username():
-#     """
-#     Update username in session state if username exists in Sleeper API.
-#     """
-#     new_username = st.session_state.temp_username
-#     if check_username_exists(new_username):
-#         st.session_state.perm['user_name'] = new_username
-#         st.session_state.username_valid = True
-#     else:
-#         st.session_state.username_valid = False
-#
-#
-# def select_league():
-#     """
-#     Create select box object for user to select league.
-#     """
-#     if st.session_state.perm['user_name']:
-#         user = User(st.session_state.perm['user_name'])
-#         leagues = user.get_all_leagues(sport="nfl", season=2024)
-#         league_dict = {league['name']: league['league_id'] for league in leagues}
-#         league_name = st.selectbox(":football: Select League", options=[""] + list(league_dict.keys()))
-#         if league_name != "":
-#             st.session_state.perm['league_name'] = league_name
-#             st.session_state.perm['league_id'] = league_dict[league_name]
-#
-#
-# # Sidebar for user input and league selection
-# with st.sidebar:
-#     st.text_input(
-#         label=":bust_in_silhouette: Enter Username",
-#         key="temp_username",
-#         value=st.session_state.perm['user_name'],
-#         on_change=update_username
-#     )
-#
-#     if 'username_valid' in st.session_state:
-#         if st.session_state.username_valid:
-#             select_league()
-#         else:
-#             st.error(f"'{st.session_state.temp_username}' is not a Sleeper username.")
+        with st.spinner("Fetching league data..."):
+            rosters = SleeperService.get_rosters(league_id)
+            users = SleeperService.get_users_in_league(league_id)
+            # Transactions for current season (1-18)
+            transactions = SleeperService.get_all_transactions(league_id)
 
-# Create draft assistant page object
-draft_assistant = st.Page(
-    "draft/draft_assistant.py", title="Draft Assistant", icon=":material/psychology_alt:", default=True
-)
+            # Initialize Analyzer
+            st.session_state.analyzer = LeagueAnalyzer(transactions, rosters, users)
+            st.success("Data loaded!")
 
-# # Rankings builder
-# rankings_builder = st.Page(
-#     "tools/rankings_builder.py", title="Rankings Builder", icon=":material/format_list_numbered:"
-# )
+# Sidebar
+with st.sidebar:
+    st.title("Sleeper Network")
 
-# Scoring simulator
-scoring_simulator = st.Page(
-    "tools/scoring_simulator.py", title="Scoring Simulator", icon=":material/tune:"
-)
+    username = st.text_input("Sleeper Username")
+    season = st.selectbox("Season", options=["2024", "2023", "2022", "2021", "2020"], index=0)
 
-# Create page navigation structure
-pg = st.navigation(
-    {
-        "Draft": [draft_assistant],
-        "Tools": [scoring_simulator],
-    }
-)
+    if st.button("Load User"):
+        if username:
+            user = SleeperService.get_user(username)
+            if user:
+                st.session_state.user = user
+                # Fetch leagues
+                leagues = SleeperService.get_all_leagues(user['user_id'], season=season)
+                st.session_state.leagues = leagues
+            else:
+                st.error("User not found.")
+        else:
+            st.warning("Please enter a username.")
 
-# Run page
-pg.run()
+    if st.session_state.user:
+        st.write(f"Logged in as: **{st.session_state.user['display_name']}**")
+
+        league_options = {l['name']: l for l in st.session_state.leagues}
+        selected_league_name = st.selectbox("Select League", options=list(league_options.keys()))
+
+        if selected_league_name:
+            st.session_state.selected_league = league_options[selected_league_name]
+
+        if st.button("Analyze League"):
+            load_data()
+
+# Main Area
+if st.session_state.analyzer:
+    import views.trade_network as trade_network
+    import views.player_explorer as player_explorer
+    import views.stats as stats_view
+
+    tab1, tab2, tab3 = st.tabs(["Trade Network", "Player Explorer", "League Stats"])
+
+    with tab1:
+        trade_network.show(st.session_state.analyzer)
+
+    with tab2:
+        player_explorer.show(st.session_state.analyzer)
+
+    with tab3:
+        stats_view.show(st.session_state.analyzer)
+
+else:
+    st.info("Please enter your Sleeper username and select a league to begin.")
