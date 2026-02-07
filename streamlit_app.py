@@ -107,17 +107,9 @@ with st.sidebar:
 
 # Main Area
 if st.session_state.analyzer:
-    from views import trade_viewer
     from views import stats as stats_view
 
-    # Reordered tabs and renamed
-    tab1, tab2 = st.tabs(["League Summary", "Trade Log & Trees"])
-
-    with tab1:
-        stats_view.show(st.session_state.analyzer)
-
-    with tab2:
-        trade_viewer.show(st.session_state.analyzer)
+    stats_view.show(st.session_state.analyzer)
 
 else:
     st.info("Please enter your Sleeper username and select a league to begin.")

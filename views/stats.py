@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 def show(analyzer):
     st.header("League Summary")
@@ -44,9 +45,26 @@ def show(analyzer):
     matrix = analyzer.get_trade_matrix()
 
     if not matrix.empty:
-        # Determine caption based on matrix symmetry logic (assumed asymmetric if available)
-        # Note: We don't explicitly know here if it fell back to symmetric, but the generic
-        # "Rows = Proposer" is aspirational.
+        # Calculate Totals
+        # Row Sum = Total Sent (Proposals)
+        matrix['Total Sent'] = matrix.sum(axis=1)
+
+        # Col Sum = Total Received (Accepted)
+        # Note: sum() includes the new 'Total Sent' column, so we must exclude it or compute before
+        # Easier: Compute col sums on original data, then append
+        col_sums = matrix.drop(columns=['Total Sent']).sum(axis=0)
+
+        # Add Total Received Row
+        matrix.loc['Total Received'] = col_sums
+
+        # Calculate Grand Total (bottom right corner)
+        # It is the sum of 'Total Sent' column (which is now in the matrix)
+        # OR sum of col_sums
+        grand_total = col_sums.sum()
+        matrix.loc['Total Received', 'Total Sent'] = grand_total
+
+        # Convert floats to ints (pandas sum might produce floats if any NaN, but we initialized with 0)
+        matrix = matrix.astype(int)
 
         st.info("Rows represent the **Proposer** (Sender). Columns represent the **Accepter** (Receiver).")
 
@@ -55,8 +73,11 @@ def show(analyzer):
         matrix.columns.name = "Accepter"
 
         # Display with heatmap style
+        # We might want to exclude the totals from the gradient so they don't skew the colors
+        # style.apply or subsetting can help.
+
         st.dataframe(
-            matrix.style.background_gradient(cmap='Blues', axis=None),
+            matrix.style.background_gradient(cmap='Blues', axis=None, subset=pd.IndexSlice[matrix.index[:-1], matrix.columns[:-1]]),
             use_container_width=True
         )
     else:
