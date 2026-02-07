@@ -19,6 +19,9 @@ class LeagueAnalyzer:
         for rid, oid in self.roster_owner_map.items():
             self.roster_name_map[rid] = self.user_name_map.get(oid, f"Roster {rid}")
 
+        # Transaction map for quick lookup
+        self.txn_map = {t['transaction_id']: t for t in self.transactions}
+
     def get_player_name(self, player_id):
         """Helper to resolve player ID to name."""
         if not player_id:
@@ -77,7 +80,7 @@ class LeagueAnalyzer:
     def get_player_path(self, player_id):
         """
         Traces a player's path through the league based on transactions.
-        Returns a list of events: {'date': timestamp, 'from': team, 'to': team, 'type': type}
+        Returns a list of events: {'date': timestamp, 'from': team, 'to': team, 'type': type, 'transaction_id': tid}
         """
         events = []
 
@@ -92,6 +95,7 @@ class LeagueAnalyzer:
             if player_id in adds or player_id in drops:
                 txn_type = txn['type']
                 date = txn['created']
+                tid = txn['transaction_id']
 
                 if txn_type == 'trade':
                     to_roster = adds.get(player_id)
@@ -110,7 +114,7 @@ class LeagueAnalyzer:
                         'type': 'trade',
                         'from': from_team,
                         'to': to_team,
-                        'transaction_id': txn['transaction_id']
+                        'transaction_id': tid
                     })
 
                 elif txn_type == 'free_agent' or txn_type == 'waiver':
@@ -123,7 +127,7 @@ class LeagueAnalyzer:
                             'type': txn_type, # 'add'
                             'from': "Waivers/FA",
                             'to': to_team,
-                            'transaction_id': txn['transaction_id']
+                            'transaction_id': tid
                         })
                     # Drop
                     if player_id in drops:
@@ -134,7 +138,7 @@ class LeagueAnalyzer:
                             'type': 'drop',
                             'from': from_team,
                             'to': "Waivers/FA",
-                            'transaction_id': txn['transaction_id']
+                            'transaction_id': tid
                         })
 
         return events
@@ -177,85 +181,62 @@ class LeagueAnalyzer:
                 trades.append(txn)
         return sorted(trades, key=lambda x: x['created'], reverse=True)
 
-    def build_trade_tree(self, root_transaction_id, focal_roster_id):
+    def build_trade_tree(self, root_transaction_id):
         """
-        Builds a tree of trades starting from a root transaction.
-        Tracks assets acquired by focal_roster_id and sees where they go.
+        Builds a full directed graph (connected component) of transactions involving
+        all assets in the root transaction. Traces both upstream (history) and downstream (future).
         """
         # Find root transaction
-        root_txn = next((t for t in self.transactions if t['transaction_id'] == root_transaction_id), None)
+        root_txn = self.txn_map.get(root_transaction_id)
         if not root_txn:
             return None
 
         # Initialize graph
         G = nx.DiGraph()
 
-        # Sort all transactions by date to search forward
-        sorted_txns = sorted(self.transactions, key=lambda x: x['created'])
+        def get_txn_label(txn_data):
+            if txn_data.get('type') == 'trade':
+                return "Trade"
+            return txn_data.get('type', 'Transaction').title()
 
-        # Helper to recursively find next trades
-        def trace_assets(current_txn, current_assets):
-            current_id = current_txn['transaction_id']
-            # We add node if not exists (or update attributes)
-            if not G.has_node(current_id):
-                G.add_node(current_id, label=f"Trade {current_id}", data=current_txn)
+        def add_txn_node(tid):
+            if not G.has_node(tid):
+                txn_data = self.txn_map.get(tid, {})
+                label = get_txn_label(txn_data)
+                G.add_node(tid, label=label, data=txn_data)
 
-            # Identify where 'current_txn' is in the list
-            try:
-                start_idx = sorted_txns.index(current_txn) + 1
-            except ValueError:
-                return
-
-            # For each asset acquired in this transaction...
-            for asset_id in current_assets:
-                found_next = False
-                # Scan future transactions
-                for i in range(start_idx, len(sorted_txns)):
-                    next_txn = sorted_txns[i]
-
-                    # Must involve our focal roster
-                    if focal_roster_id not in next_txn['roster_ids']:
-                        continue
-
-                    # Check if asset_id is dropped/traded away
-                    drops = next_txn.get('drops') or {}
-
-                    if asset_id in drops:
-                        # Found the move!
-                        found_next = True
-
-                        if next_txn['type'] == 'trade':
-                            # It's a trade branch
-                            next_id = next_txn['transaction_id']
-
-                            # Determine what we got in return (new assets)
-                            adds = next_txn.get('adds') or {}
-                            new_assets = [pid for pid, rid in adds.items() if rid == focal_roster_id]
-
-                            # Resolve asset name
-                            asset_name = self.get_player_name(asset_id)
-
-                            # Add edge
-                            G.add_edge(current_id, next_id, label=asset_name)
-
-                            # Recurse
-                            trace_assets(next_txn, new_assets)
-                        else:
-                            # It was dropped/waivered
-                            # Optional: Add a 'Drop' node?
-                            pass
-
-                        break # Asset moved, stop searching for this asset
-
-                if not found_next:
-                    # Asset stays on roster
-                    pass
-
-        # Initial assets: What did focal_roster_id GET in root_txn?
+        # 1. Identify all assets (players) in the root transaction
         adds = root_txn.get('adds') or {}
-        # In a trade, adds dictionary maps player_id -> roster_id (receiver)
-        initial_assets = [pid for pid, rid in adds.items() if rid == focal_roster_id]
+        drops = root_txn.get('drops') or {}
+        involved_assets = set(adds.keys()) | set(drops.keys())
 
-        trace_assets(root_txn, initial_assets)
+        # 2. For each asset, get its full path and add to graph
+        for asset_id in involved_assets:
+            path = self.get_player_path(asset_id)
+            asset_name = self.get_player_name(asset_id)
+
+            # Path is a list of events ordered by date
+            # Each event has a transaction_id
+
+            previous_txn_id = None
+
+            for event in path:
+                current_txn_id = event['transaction_id']
+
+                # Add node
+                add_txn_node(current_txn_id)
+
+                # If we have a previous transaction, add an edge
+                if previous_txn_id:
+                     # Check if edge already exists
+                    if G.has_edge(previous_txn_id, current_txn_id):
+                        # Append to label if not already there
+                        current_label = G[previous_txn_id][current_txn_id].get('label', '')
+                        if asset_name not in current_label:
+                            G[previous_txn_id][current_txn_id]['label'] = f"{current_label}, {asset_name}"
+                    else:
+                        G.add_edge(previous_txn_id, current_txn_id, label=asset_name)
+
+                previous_txn_id = current_txn_id
 
         return G

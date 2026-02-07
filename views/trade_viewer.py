@@ -56,7 +56,7 @@ def show(analyzer):
     # --- Trade Tree Visualization ---
     st.divider()
     st.subheader("Trade Tree Explorer")
-    st.caption("Select a trade from below to visualize how its assets were subsequently traded.")
+    st.caption("Select a trade from below to visualize the full history and future of the involved assets.")
 
     # Sort trades for dropdown (newest first)
     all_trades = sorted([t for t in analyzer.transactions if t['type'] == 'trade'],
@@ -72,69 +72,56 @@ def show(analyzer):
         trade_options[label] = t['transaction_id']
         trade_labels.append(label)
 
-    selected_label = st.selectbox("Select Root Trade", options=trade_labels)
+    selected_label = st.selectbox("Select Trade", options=trade_labels)
 
     if selected_label:
         root_tid = trade_options[selected_label]
-        root_txn = next((t for t in all_trades if t['transaction_id'] == root_tid), None)
 
-        if root_txn:
-            st.markdown("---")
-            # Allow user to pick which team's perspective
-            roster_ids = root_txn['roster_ids']
-            roster_names = {}
-            for rid in roster_ids:
-                name = analyzer.roster_name_map.get(rid, f"Roster {rid}")
-                roster_names[name] = rid
+        st.markdown(f"**Tracing assets history and future...**")
 
-            focal_roster_name = st.radio("Visualize return for:",
-                                         options=list(roster_names.keys()),
-                                         horizontal=True)
+        G = analyzer.build_trade_tree(root_tid)
 
-            focal_rid = roster_names[focal_roster_name]
+        if G is None:
+                st.error("Error building tree.")
+        elif len(G.nodes) > 0:
+            # Convert to Graphviz DOT format
+            dot = "digraph {\n"
+            dot += "  rankdir=TB;\n" # Top to Bottom flow
+            dot += "  node [shape=box, style=filled, fillcolor=lightblue, fontname=\"Helvetica\"];\n"
+            dot += "  edge [fontname=\"Helvetica\", fontsize=10];\n"
 
-            if focal_rid:
-                st.markdown(f"**Tracing assets acquired by {focal_roster_name}...**")
+            # Sort nodes by date for better layout hints?
+            # Graphviz handles layout automatically, but rankdir=TB helps.
 
-                G = analyzer.build_trade_tree(root_tid, focal_rid)
+            # Add nodes
+            for node_id in G.nodes:
+                data = analyzer.txn_map.get(node_id, {})
+                date_str = pd.to_datetime(data.get('created', 0), unit='ms').strftime('%Y-%m-%d')
 
-                if G is None:
-                     st.error("Error building tree.")
-                elif len(G.nodes) > 1: # More than just the root
-                    # Convert to Graphviz DOT format
-                    dot = "digraph {\n"
-                    dot += "  rankdir=LR;\n"
-                    dot += "  node [shape=box, style=filled, fillcolor=lightblue, fontname=\"Helvetica\"];\n"
-                    dot += "  edge [fontname=\"Helvetica\"];\n"
+                # Label: Date \n Type \n Teams involved
+                txn_type = data.get('type', 'Transaction').title()
+                involved = [analyzer.roster_name_map.get(rid, str(rid)) for rid in data.get('roster_ids', [])]
+                involved_str = "\\n".join(involved)
 
-                    # Add nodes
-                    for node_id in G.nodes:
-                        data = G.nodes[node_id].get('data', {})
-                        date_str = pd.to_datetime(data.get('created', 0), unit='ms').strftime('%Y-%m-%d')
+                label = f"{date_str}\\n{txn_type}\\n{involved_str}"
 
-                        # Label: Date \n Teams involved
-                        involved = [analyzer.roster_name_map.get(rid, str(rid)) for rid in data.get('roster_ids', [])]
-                        involved_str = "\\n".join(involved)
+                # Highlight Root node
+                color = "lightblue"
+                if node_id == root_tid:
+                    color = "gold"
+                    label = f"SELECTED TRADE\\n{label}"
+                elif txn_type == "Waiver" or txn_type == "Free_Agent":
+                    color = "lightgrey"
 
-                        label = f"{date_str}\\n{involved_str}"
+                dot += f'  "{node_id}" [label="{label}", fillcolor={color}];\n'
 
-                        # Root node styling
-                        color = "lightblue"
-                        if node_id == root_tid:
-                            color = "gold"
-                            label = f"ROOT TRADE\\n{label}"
+            # Add edges
+            for u, v in G.edges:
+                label = G[u][v].get('label', '')
+                safe_label = label.replace('"', '\\"')
+                dot += f'  "{u}" -> "{v}" [label="{safe_label}"];\n'
 
-                        dot += f'  "{node_id}" [label="{label}", fillcolor={color}];\n'
-
-                    # Add edges
-                    for u, v in G.edges:
-                        label = G[u][v].get('label', '')
-                        safe_label = label.replace('"', '\\"')
-                        dot += f'  "{u}" -> "{v}" [label="{safe_label}", fontsize=10];\n'
-
-                    dot += "}"
-                    st.graphviz_chart(dot)
-                elif len(G.nodes) == 1:
-                    st.info(f"No subsequent trades found involving the assets acquired by {focal_roster_name} in this trade.")
-                else:
-                    st.warning("Could not build tree.")
+            dot += "}"
+            st.graphviz_chart(dot)
+        else:
+            st.info("No asset history found.")

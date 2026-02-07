@@ -12,43 +12,61 @@ class TestLeagueAnalyzer(unittest.TestCase):
             {'roster_id': 1, 'owner_id': 'u1'},
             {'roster_id': 2, 'owner_id': 'u2'},
         ]
-        # Trade 1: Owner1 gets P1.
-        # Trade 2: Owner1 trades P1 for P2.
+        # Chain:
+        # T1 (1000): Owner 1 adds P1 (FA)
+        # T2 (2000): Owner 1 trades P1 to Owner 2
+        # T3 (3000): Owner 2 trades P1 back to Owner 1 (or someone else)
+
         self.transactions = [
             {
                 'transaction_id': 't1',
-                'type': 'trade',
-                'roster_ids': [1, 2],
-                'adds': {'p1': 1}, # Owner1 gets p1
-                'drops': {'p1': 2},
+                'type': 'free_agent',
+                'roster_ids': [1],
+                'adds': {'p1': 1},
+                'drops': {},
                 'created': 1000
             },
             {
                 'transaction_id': 't2',
                 'type': 'trade',
                 'roster_ids': [1, 2],
-                'adds': {'p2': 1}, # Owner1 gets p2
-                'drops': {'p1': 1, 'p2': 2}, # Owner1 gives p1
+                'adds': {'p1': 2}, # Owner 2 gets p1
+                'drops': {'p1': 1}, # Owner 1 gives p1
                 'created': 2000
+            },
+            {
+                'transaction_id': 't3',
+                'type': 'trade',
+                'roster_ids': [1, 2],
+                'adds': {'p1': 1}, # Owner 1 gets p1 back
+                'drops': {'p1': 2}, # Owner 2 gives p1
+                'created': 3000
             }
         ]
         self.analyzer = LeagueAnalyzer(self.transactions, self.rosters, self.users)
 
-    def test_build_trade_tree(self):
-        # Focus on Roster 1 (Owner1) starting from t1
-        G = self.analyzer.build_trade_tree('t1', 1)
+    def test_build_trade_tree_full_history(self):
+        # Selecting the middle trade (t2) should show upstream (t1) and downstream (t3)
+        G = self.analyzer.build_trade_tree('t2')
 
-        # Expect t1 -> t2 edge labeled 'p1'
+        self.assertIsNotNone(G)
+        self.assertTrue(G.has_node('t1'))
+        self.assertTrue(G.has_node('t2'))
+        self.assertTrue(G.has_node('t3'))
+
         self.assertTrue(G.has_edge('t1', 't2'))
-        # Check edge label if possible, but networkx stores data in dict
-        edge_data = G.get_edge_data('t1', 't2')
-        # Note: My implementation might overwrite label if multiple assets move?
-        # Current impl: G.add_edge(..., label=str(asset_id)) inside loop.
-        # If multiple assets move, it might overwrite or add parallel edges (if MultiDiGraph).
-        # Using DiGraph, subsequent add_edge calls update attributes.
-        # I should probably append to label or use a list.
-        # But for this test, p1 is the only asset.
-        self.assertEqual(edge_data['label'], 'p1')
+        self.assertTrue(G.has_edge('t2', 't3'))
+
+        # Check edge labels (should contain asset name/ID)
+        # Since no player name map, it uses ID
+        # Label logic: label=asset_name
+        # For t1->t2, p1 moves.
+        # For t2->t3, p1 moves.
+
+        # Note: In my impl, I don't set G.edge['label'] directly if using multi-edges or if logic appends.
+        # But let's check attributes
+        edge_t1_t2 = G[u't1'][u't2']
+        self.assertIn('p1', edge_t1_t2['label'])
 
 if __name__ == '__main__':
     unittest.main()
