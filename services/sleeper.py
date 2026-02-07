@@ -66,14 +66,52 @@ class SleeperService:
 
     @staticmethod
     @st.cache_data(ttl=3600)
-    def get_all_transactions(league_id, max_week=18):
-        """Fetch all transactions for the season (weeks 1 to max_week)."""
+    def get_all_transactions(league_ids, max_week=18):
+        """
+        Fetch all transactions for a list of league IDs.
+        If league_ids is a string, treats it as a single ID.
+        """
+        if isinstance(league_ids, str):
+            league_ids = [league_ids]
+
         all_transactions = []
-        for week in range(1, max_week + 1):
-            transactions = SleeperService.get_transactions(league_id, week)
-            if transactions:
-                all_transactions.extend(transactions)
+        for lid in league_ids:
+            # We iterate 1-18 for simplicity, though some seasons might be shorter/longer
+            # or pre-season/off-season transactions might be in round 1 or other?
+            # Sleeper transactions are usually round 1-18.
+            # Offseason trades might be in round 1 of next season or round 18 of previous?
+            # Actually sleeper puts transactions in 'round'.
+            # Let's stick to 1-18 for now, maybe extending if needed.
+            for week in range(1, max_week + 1):
+                transactions = SleeperService.get_transactions(lid, week)
+                if transactions:
+                    all_transactions.extend(transactions)
         return all_transactions
+
+    @staticmethod
+    @st.cache_data(ttl=3600)
+    def get_league_history(league_id):
+        """
+        Iteratively fetch previous league IDs to build a history.
+        Returns a list of league IDs [current, prev, prev-prev, ...]
+        """
+        history = []
+        current_id = league_id
+
+        # Limit to avoid infinite loops if cycle exists (unlikely but safe)
+        for _ in range(10):
+            if not current_id:
+                break
+
+            history.append(current_id)
+
+            league_data = SleeperService.get_league(current_id)
+            if not league_data:
+                break
+
+            current_id = league_data.get('previous_league_id')
+
+        return history
 
     @staticmethod
     @st.cache_data(ttl=86400) # Cache for 24 hours as players don't change often

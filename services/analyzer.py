@@ -2,10 +2,11 @@ import networkx as nx
 from collections import defaultdict
 
 class LeagueAnalyzer:
-    def __init__(self, transactions, rosters, users):
+    def __init__(self, transactions, rosters, users, all_players=None):
         self.transactions = transactions
         self.rosters = rosters
         self.users = users
+        self.all_players = all_players or {}
 
         # Map roster_id to owner_id
         self.roster_owner_map = {r['roster_id']: r['owner_id'] for r in rosters}
@@ -17,6 +18,17 @@ class LeagueAnalyzer:
         self.roster_name_map = {}
         for rid, oid in self.roster_owner_map.items():
             self.roster_name_map[rid] = self.user_name_map.get(oid, f"Roster {rid}")
+
+    def get_player_name(self, player_id):
+        """Helper to resolve player ID to name."""
+        if not player_id:
+            return "Unknown"
+        # Try to cast to string just in case
+        player_id = str(player_id)
+        if player_id in self.all_players:
+            p = self.all_players[player_id]
+            return f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
+        return player_id
 
     def build_trade_network(self):
         """
@@ -82,31 +94,8 @@ class LeagueAnalyzer:
                 date = txn['created']
 
                 if txn_type == 'trade':
-                    # If traded, they are added to one team and dropped from another (implicitly or explicitly)
-                    # Sleeper puts the player in 'adds' for the receiving team
-                    # And 'drops' for the sending team? Actually in trades, 'drops' might be null,
-                    # but 'adds' tells us who GOT the player.
-                    # We need to find who sent the player.
-                    # In a trade transaction, 'adds' maps player_id -> roster_id (receiver).
-                    # 'drops' maps player_id -> roster_id (sender).
-                    # Wait, let's verify sleeper API response structure for trade.
-                    # Usually 'adds' has the player. 'drops' might have the player too?
-                    # If 'drops' is present, it means the sender dropped them?
-                    # In a trade, usually the player is just moved.
-
-                    # If player is in adds:
                     to_roster = adds.get(player_id)
-                    from_roster = drops.get(player_id) # Sometimes drops is populated in trade?
-
-                    # If from_roster is missing in drops, we might infer it from previous state
-                    # or look at who else is in the transaction.
-                    # Actually, for trades, sleeper usually populates both adds and drops?
-                    # Or maybe just adds. If just adds, how do we know who sent it?
-                    # The transaction has 'roster_ids'. If it's a 2-team trade, the other team sent it.
-                    # But if 3-team trade...
-
-                    # Let's handle simple 2-team case mostly.
-                    # If drops is present, great.
+                    from_roster = drops.get(player_id)
 
                     to_team = self.roster_name_map.get(to_roster, "Unknown") if to_roster else "Unknown"
                     from_team = self.roster_name_map.get(from_roster, "Unknown") if from_roster else "Unknown"
@@ -179,3 +168,94 @@ class LeagueAnalyzer:
             }
 
         return stats
+
+    def get_trades_for_roster(self, roster_id):
+        """Get all trades involving a specific roster."""
+        trades = []
+        for txn in self.transactions:
+            if txn['type'] == 'trade' and roster_id in txn['roster_ids']:
+                trades.append(txn)
+        return sorted(trades, key=lambda x: x['created'], reverse=True)
+
+    def build_trade_tree(self, root_transaction_id, focal_roster_id):
+        """
+        Builds a tree of trades starting from a root transaction.
+        Tracks assets acquired by focal_roster_id and sees where they go.
+        """
+        # Find root transaction
+        root_txn = next((t for t in self.transactions if t['transaction_id'] == root_transaction_id), None)
+        if not root_txn:
+            return None
+
+        # Initialize graph
+        G = nx.DiGraph()
+
+        # Sort all transactions by date to search forward
+        sorted_txns = sorted(self.transactions, key=lambda x: x['created'])
+
+        # Helper to recursively find next trades
+        def trace_assets(current_txn, current_assets):
+            current_id = current_txn['transaction_id']
+            # We add node if not exists (or update attributes)
+            if not G.has_node(current_id):
+                G.add_node(current_id, label=f"Trade {current_id}", data=current_txn)
+
+            # Identify where 'current_txn' is in the list
+            try:
+                start_idx = sorted_txns.index(current_txn) + 1
+            except ValueError:
+                return
+
+            # For each asset acquired in this transaction...
+            for asset_id in current_assets:
+                found_next = False
+                # Scan future transactions
+                for i in range(start_idx, len(sorted_txns)):
+                    next_txn = sorted_txns[i]
+
+                    # Must involve our focal roster
+                    if focal_roster_id not in next_txn['roster_ids']:
+                        continue
+
+                    # Check if asset_id is dropped/traded away
+                    drops = next_txn.get('drops') or {}
+
+                    if asset_id in drops:
+                        # Found the move!
+                        found_next = True
+
+                        if next_txn['type'] == 'trade':
+                            # It's a trade branch
+                            next_id = next_txn['transaction_id']
+
+                            # Determine what we got in return (new assets)
+                            adds = next_txn.get('adds') or {}
+                            new_assets = [pid for pid, rid in adds.items() if rid == focal_roster_id]
+
+                            # Resolve asset name
+                            asset_name = self.get_player_name(asset_id)
+
+                            # Add edge
+                            G.add_edge(current_id, next_id, label=asset_name)
+
+                            # Recurse
+                            trace_assets(next_txn, new_assets)
+                        else:
+                            # It was dropped/waivered
+                            # Optional: Add a 'Drop' node?
+                            pass
+
+                        break # Asset moved, stop searching for this asset
+
+                if not found_next:
+                    # Asset stays on roster
+                    pass
+
+        # Initial assets: What did focal_roster_id GET in root_txn?
+        adds = root_txn.get('adds') or {}
+        # In a trade, adds dictionary maps player_id -> roster_id (receiver)
+        initial_assets = [pid for pid, rid in adds.items() if rid == focal_roster_id]
+
+        trace_assets(root_txn, initial_assets)
+
+        return G

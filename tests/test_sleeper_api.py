@@ -37,5 +37,20 @@ class TestSleeperService(unittest.TestCase):
         self.assertEqual(len(transactions), 1)
         self.assertEqual(transactions[0]['transaction_id'], "tx1")
 
+    @patch('services.sleeper.SleeperService.get_league')
+    def test_get_league_history(self, mock_get_league):
+        # Mock get_league to return previous_league_id
+        def side_effect(league_id):
+            if league_id == "current":
+                return {"league_id": "current", "previous_league_id": "prev"}
+            if league_id == "prev":
+                return {"league_id": "prev", "previous_league_id": None}
+            return None
+
+        mock_get_league.side_effect = side_effect
+
+        history = SleeperService.get_league_history("current")
+        self.assertEqual(history, ["current", "prev"])
+
 if __name__ == '__main__':
     unittest.main()
