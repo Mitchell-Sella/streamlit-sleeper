@@ -44,44 +44,34 @@ def show(analyzer):
         vmax = original_matrix.max().max() if not original_matrix.empty else 1
 
         # Calculate Totals
-        # Row Sum = Total Sent (Proposals)
-        matrix['Total Sent'] = matrix.sum(axis=1)
+        # Row Sum = Total Proposed (Proposals)
+        matrix['Total Proposed'] = matrix.sum(axis=1)
 
-        # Col Sum = Total Received (Accepted)
-        # Note: sum() includes the new 'Total Sent' column, so we must exclude it or compute before
+        # Col Sum = Total Accepted (Accepted)
+        # Note: sum() includes the new 'Total Proposed' column, so we must exclude it or compute before
         # Easier: Compute col sums on original data, then append
-        col_sums = matrix.drop(columns=['Total Sent']).sum(axis=0)
+        col_sums = matrix.drop(columns=['Total Proposed']).sum(axis=0)
 
-        # Add Total Received Row
-        matrix.loc['Total Received'] = col_sums
+        # Add Total Accepted Row
+        matrix.loc['Total Accepted'] = col_sums
 
         # Calculate Grand Total (bottom right corner)
-        # It is the sum of 'Total Sent' column (which is now in the matrix)
-        # OR sum of col_sums
         grand_total = col_sums.sum()
-        matrix.loc['Total Received', 'Total Sent'] = grand_total
+        matrix.loc['Total Accepted', 'Total Proposed'] = grand_total
 
-        # Convert floats to ints (pandas sum might produce floats if any NaN, but we initialized with 0)
+        # Convert floats to ints
         matrix = matrix.fillna(0).astype(int)
 
-        st.info("Rows represent the **Proposer** (Sender). Columns represent the **Accepter** (Receiver).")
+        st.info("Rows represent the **Proposer**. Columns represent the **Accepter**.")
 
         # Rename axes for clarity
-        matrix.index.name = "Sender (Proposer)"
+        matrix.index.name = "Proposer"
         matrix.columns.name = "Accepter"
 
         # Display with heatmap style
-        # We use vmax based on individual trades so totals (which are large) don't skew the gradient
-        # Removing subset to ensure totals are visible (they will be dark blue, but visible)
         st.dataframe(
             matrix.style.background_gradient(cmap='Blues', axis=None, vmax=vmax),
             use_container_width=True
         )
-
-        with st.expander("Debug Matrix Data"):
-            st.write("Matrix Shape:", matrix.shape)
-            st.write("Index:", matrix.index.tolist())
-            st.write("Columns:", matrix.columns.tolist())
-            st.dataframe(matrix) # Raw data
     else:
         st.info("No trades found to generate matrix.")
