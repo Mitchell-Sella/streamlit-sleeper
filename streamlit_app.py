@@ -45,33 +45,34 @@ def load_data():
             st.session_state.analyzer = LeagueAnalyzer(transactions, rosters, users, all_players)
             st.success(f"Loaded {len(history_ids)} seasons of data with {len(transactions)} transactions!")
 
+def load_user_data():
+    """Callback to load user data when username changes."""
+    username = st.session_state.username_input
+    if username:
+        user = SleeperService.get_user(username)
+        if user:
+            st.session_state.user = user
+            # Fetch leagues - try recent years if 2024 fails
+            found_leagues = []
+            for year in ["2025", "2024", "2023", "2022"]:
+                leagues = SleeperService.get_all_leagues(user['user_id'], season=year)
+                if leagues:
+                    found_leagues = leagues
+                    break
+
+            st.session_state.leagues = found_leagues
+            if not found_leagues:
+                st.warning("No recent leagues found (2022-2025).")
+        else:
+            st.error("User not found.")
+            st.session_state.user = None
+            st.session_state.leagues = []
+
 # Sidebar
 with st.sidebar:
     st.title("Sleeper Network")
 
-    username = st.text_input("Sleeper Username")
-    # Removed Season selector as requested
-
-    if st.button("Load User"):
-        if username:
-            user = SleeperService.get_user(username)
-            if user:
-                st.session_state.user = user
-                # Fetch leagues - try recent years if 2024 fails
-                found_leagues = []
-                for year in ["2025", "2024", "2023", "2022"]:
-                    leagues = SleeperService.get_all_leagues(user['user_id'], season=year)
-                    if leagues:
-                        found_leagues = leagues
-                        break
-
-                st.session_state.leagues = found_leagues
-                if not found_leagues:
-                    st.warning("No recent leagues found (2022-2025).")
-            else:
-                st.error("User not found.")
-        else:
-            st.warning("Please enter a username.")
+    st.text_input("Sleeper Username", key="username_input", on_change=load_user_data)
 
     if st.session_state.user:
         st.write(f"Logged in as: **{st.session_state.user['display_name']}**")
@@ -93,13 +94,14 @@ if st.session_state.analyzer:
     from views import trade_viewer
     from views import stats as stats_view
 
-    tab1, tab2 = st.tabs(["Trade Log & Trees", "League Stats & Matrix"])
+    # Reordered tabs and renamed
+    tab1, tab2 = st.tabs(["League Summary", "Trade Log & Trees"])
 
     with tab1:
-        trade_viewer.show(st.session_state.analyzer)
+        stats_view.show(st.session_state.analyzer)
 
     with tab2:
-        stats_view.show(st.session_state.analyzer)
+        trade_viewer.show(st.session_state.analyzer)
 
 else:
     st.info("Please enter your Sleeper username and select a league to begin.")

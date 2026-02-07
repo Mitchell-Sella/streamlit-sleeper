@@ -13,30 +13,42 @@ class TestLeagueAnalyzer(unittest.TestCase):
             {'roster_id': 1, 'owner_id': 'u1'},
             {'roster_id': 2, 'owner_id': 'u2'},
         ]
-        self.transactions = [
+
+    def test_get_trade_matrix_symmetric(self):
+        # No creator field
+        transactions = [
             {
                 'transaction_id': 't1',
                 'type': 'trade',
                 'roster_ids': [1, 2],
-                'adds': {},
-                'drops': {},
                 'created': 1000
             }
         ]
-        self.analyzer = LeagueAnalyzer(self.transactions, self.rosters, self.users)
+        analyzer = LeagueAnalyzer(transactions, self.rosters, self.users)
+        matrix = analyzer.get_trade_matrix()
 
-    def test_get_trade_matrix(self):
-        matrix = self.analyzer.get_trade_matrix()
-
-        self.assertIsInstance(matrix, pd.DataFrame)
-        self.assertEqual(matrix.shape, (2, 2))
-        self.assertIn('Owner1', matrix.index)
-        self.assertIn('Owner2', matrix.index)
-
-        # Check trade count
         self.assertEqual(matrix.loc['Owner1', 'Owner2'], 1)
-        self.assertEqual(matrix.loc['Owner2', 'Owner1'], 1) # Symmetric
-        self.assertEqual(matrix.loc['Owner1', 'Owner1'], 0) # No self trade
+        self.assertEqual(matrix.loc['Owner2', 'Owner1'], 1)
+
+    def test_get_trade_matrix_asymmetric(self):
+        # With creator field
+        transactions = [
+            {
+                'transaction_id': 't1',
+                'type': 'trade',
+                'roster_ids': [1, 2],
+                'creator': 'u1', # Owner1 is creator
+                'created': 1000
+            }
+        ]
+        analyzer = LeagueAnalyzer(transactions, self.rosters, self.users)
+        matrix = analyzer.get_trade_matrix()
+
+        # Row=Sender, Col=Acceptor
+        # Owner1 proposed, Owner2 accepted
+        self.assertEqual(matrix.loc['Owner1', 'Owner2'], 1)
+        # Owner2 did NOT propose to Owner1
+        self.assertEqual(matrix.loc['Owner2', 'Owner1'], 0)
 
 if __name__ == '__main__':
     unittest.main()

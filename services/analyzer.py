@@ -1,6 +1,7 @@
 import networkx as nx
 from collections import defaultdict
 import pandas as pd
+import time
 
 class LeagueAnalyzer:
     def __init__(self, transactions, rosters, users, all_players=None):
@@ -80,11 +81,19 @@ class LeagueAnalyzer:
 
     def get_trade_matrix(self):
         """
-        Returns a symmetric pandas DataFrame where rows and columns are team names,
-        and values are the number of trades between them.
+        Returns a pandas DataFrame representing the trade matrix.
+        If 'creator' info is reliable, Rows=Proposers, Cols=Accepters.
+        Otherwise, symmetric.
         """
         team_names = sorted(list(self.roster_name_map.values()))
         matrix = pd.DataFrame(0, index=team_names, columns=team_names)
+
+        # Check if we have creators in any trade
+        has_creator = False
+        for txn in self.transactions:
+            if txn['type'] == 'trade' and txn.get('creator'):
+                has_creator = True
+                break
 
         for txn in self.transactions:
             if txn['type'] != 'trade':
@@ -94,19 +103,40 @@ class LeagueAnalyzer:
             if not roster_ids or len(roster_ids) < 2:
                 continue
 
-            # Iterate through all pairs in the trade
-            for i in range(len(roster_ids)):
-                for j in range(i + 1, len(roster_ids)):
-                    rid1 = roster_ids[i]
-                    rid2 = roster_ids[j]
+            creator_id = txn.get('creator')
 
-                    name1 = self.roster_name_map.get(rid1, f"Roster {rid1}")
-                    name2 = self.roster_name_map.get(rid2, f"Roster {rid2}")
+            # Identify Proposer Roster
+            proposer_rid = None
+            if has_creator and creator_id:
+                for rid in roster_ids:
+                    if self.roster_owner_map.get(rid) == creator_id:
+                        proposer_rid = rid
+                        break
 
-                    # Increment count in both directions (symmetric)
-                    if name1 in matrix.index and name2 in matrix.columns:
-                        matrix.loc[name1, name2] += 1
-                        matrix.loc[name2, name1] += 1
+            if has_creator and proposer_rid:
+                # Asymmetric: Proposer (Row) -> Accepter (Col)
+                row_name = self.roster_name_map.get(proposer_rid)
+
+                for rid in roster_ids:
+                    if rid == proposer_rid:
+                        continue
+                    col_name = self.roster_name_map.get(rid)
+
+                    if row_name in matrix.index and col_name in matrix.columns:
+                        matrix.loc[row_name, col_name] += 1
+            else:
+                # Symmetric fallback
+                for i in range(len(roster_ids)):
+                    for j in range(i + 1, len(roster_ids)):
+                        rid1 = roster_ids[i]
+                        rid2 = roster_ids[j]
+
+                        name1 = self.roster_name_map.get(rid1, f"Roster {rid1}")
+                        name2 = self.roster_name_map.get(rid2, f"Roster {rid2}")
+
+                        if name1 in matrix.index and name2 in matrix.columns:
+                            matrix.loc[name1, name2] += 1
+                            matrix.loc[name2, name1] += 1
 
         return matrix
 
@@ -183,26 +213,56 @@ class LeagueAnalyzer:
         stats = {
             'total_trades': 0,
             'most_active_trader': None,
-            'biggest_trade': None
+            'least_active_trader': None,
+            'days_since_last_trade': None
         }
 
         trade_counts = defaultdict(int)
         total_trades = 0
+        last_trade_time = 0
 
         for txn in self.transactions:
             if txn['type'] == 'trade':
                 total_trades += 1
+                created = txn.get('created', 0)
+                if created > last_trade_time:
+                    last_trade_time = created
+
                 for rid in txn['roster_ids']:
                     trade_counts[rid] += 1
 
         stats['total_trades'] = total_trades
 
         if trade_counts:
+            # Most Active
             most_active_rid = max(trade_counts, key=trade_counts.get)
             stats['most_active_trader'] = {
                 'name': self.roster_name_map.get(most_active_rid, "Unknown"),
                 'count': trade_counts[most_active_rid]
             }
+
+            # Least Active (exclude 0 if we assume only looking at those who traded,
+            # or include all if we want to shame non-traders. Let's include those with > 0 first)
+            # Actually, user probably wants to see who trades the least (maybe 0).
+            # But trade_counts only has those who traded.
+
+            # Find min > 0
+            min_count = min(trade_counts.values())
+            # Find who has that count
+            least_active_rids = [rid for rid, count in trade_counts.items() if count == min_count]
+            # Just take the first one or format
+            least_active_name = self.roster_name_map.get(least_active_rids[0], "Unknown")
+
+            stats['least_active_trader'] = {
+                'name': least_active_name,
+                'count': min_count
+            }
+
+        if last_trade_time > 0:
+            current_time = time.time() * 1000 # ms
+            diff_ms = current_time - last_trade_time
+            diff_days = diff_ms / (1000 * 3600 * 24)
+            stats['days_since_last_trade'] = int(diff_days)
 
         return stats
 
