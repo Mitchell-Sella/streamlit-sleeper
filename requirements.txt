@@ -1,4 +1,6 @@
-numpy
-pandas
 streamlit
-sleeper-api-wrapper
+requests
+pandas
+numpy
+networkx
+streamlit-agraph
