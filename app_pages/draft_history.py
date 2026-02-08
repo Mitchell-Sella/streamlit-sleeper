@@ -76,7 +76,7 @@ def process_draft_history(draft_data, selected_user_id, analyzer_instance):
 
 # Ensure data is loaded
 if 'analyzer' not in st.session_state or not st.session_state.analyzer:
-    st.info("Please load league data on the Home page first.")
+    st.info("Please load league data in the sidebar.")
     st.stop()
 
 analyzer = st.session_state.analyzer
