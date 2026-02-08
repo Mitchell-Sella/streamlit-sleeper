@@ -2,12 +2,11 @@ import streamlit as st
 import pandas as pd
 from services.sleeper import SleeperService
 from services.analyzer import LeagueAnalyzer
-from views import stats as stats_view
 
 # Page config
 st.set_page_config(
-    page_title="League Trade Explorer",
-    page_icon=":material/swap_horiz:",
+    page_title="Sleeper League Analytics",
+    page_icon=":material/analytics:",
     layout="wide"
 )
 
@@ -22,6 +21,8 @@ if 'analyzer' not in st.session_state:
     st.session_state.analyzer = None
 if 'league_history_map' not in st.session_state:
     st.session_state.league_history_map = {}
+if 'draft_data' not in st.session_state:
+    st.session_state.draft_data = [] # Store raw draft data for history page
 
 def load_data(selected_league_ids):
     """Fetch data for selected league IDs and initialize analyzer."""
@@ -34,10 +35,6 @@ def load_data(selected_league_ids):
             transactions = SleeperService.get_all_transactions(selected_league_ids)
 
             # 2. Fetch rosters & users (from current league mostly)
-            # Use the most recent league ID (the selected one usually)
-            # Actually, roster IDs are usually consistent across history in Dynasty?
-            # Or do they change? They usually persist if it's the same league chain.
-            # But users might change.
             rosters = SleeperService.get_rosters(league_id)
             users = SleeperService.get_users_in_league(league_id)
 
@@ -56,7 +53,6 @@ def load_data(selected_league_ids):
                 drafts = SleeperService.get_drafts_in_league(lid)
                 for draft in drafts:
                     d_id = draft['draft_id']
-                    # We need full draft details for slot_to_roster_id mapping
                     full_draft = SleeperService.get_draft(d_id)
                     picks = SleeperService.get_draft_picks(d_id)
 
@@ -64,6 +60,9 @@ def load_data(selected_league_ids):
                         draft_data.append({'draft': full_draft, 'picks': picks})
 
             progress_bar.empty()
+
+            # Store in session state for other pages
+            st.session_state.draft_data = draft_data
 
             # Initialize Analyzer
             analyzer = LeagueAnalyzer(transactions, rosters, users, all_players)
@@ -78,6 +77,7 @@ def load_user_data():
     st.session_state.selected_league = None
     st.session_state.analyzer = None
     st.session_state.league_history_map = {}
+    st.session_state.draft_data = []
 
     username = st.session_state.username_input
     if username:
@@ -102,9 +102,9 @@ def load_user_data():
             st.session_state.user = None
             st.session_state.leagues = []
 
-# Sidebar
+# Sidebar (Common Controls)
 with st.sidebar:
-    st.title("Sleeper Streamlit")
+    st.title("Sleeper Analytics")
 
     st.text_input("Sleeper Username", key="username_input", on_change=load_user_data)
 
@@ -113,10 +113,6 @@ with st.sidebar:
 
         league_options = {l['name']: l for l in st.session_state.leagues}
         if league_options:
-            # Helper to format league name in selectbox
-            def format_league_name(l_name):
-                return l_name
-
             selected_league_name = st.selectbox("Select League", options=list(league_options.keys()))
 
             if selected_league_name:
@@ -127,6 +123,7 @@ with st.sidebar:
                     st.session_state.selected_league = selected_league
                     st.session_state.analyzer = None # Reset analyzer
                     st.session_state.league_history_map = {} # Reset history
+                    st.session_state.draft_data = []
 
                 # Fetch history map if not already done for this league
                 if not st.session_state.league_history_map:
@@ -140,7 +137,7 @@ with st.sidebar:
                         st.session_state.league_history_map = history_map
 
                 # Automatically load all history
-                if st.button("Analyze League History"):
+                if st.button("Load League Data"):
                     # Use all available history IDs
                     if st.session_state.league_history_map:
                         selected_ids = list(st.session_state.league_history_map.values())
@@ -150,8 +147,13 @@ with st.sidebar:
         else:
             st.warning("No leagues found.")
 
-# Main Area
+st.title("Welcome to Sleeper League Analytics")
+st.markdown("""
+Use the sidebar to load your league data. Once loaded, navigate to the pages using the sidebar menu:
+
+*   **Trade Explorer**: Analyze trade networks and history.
+*   **Draft History**: View your historical draft performance.
+""")
+
 if st.session_state.analyzer:
-    stats_view.show(st.session_state.analyzer)
-else:
-    st.info("Please enter your Sleeper username and select a league to begin.")
+    st.success("Data loaded! Select a page from the sidebar.")
