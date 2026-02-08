@@ -122,3 +122,33 @@ class SleeperService:
         if response.status_code == 200:
             return response.json()
         return {}
+
+    @staticmethod
+    @st.cache_data(ttl=3600)
+    def get_drafts_in_league(league_id):
+        """Fetch all drafts for a league."""
+        url = f"{SleeperService.BASE_URL}/league/{league_id}/drafts"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        return []
+
+    @staticmethod
+    @st.cache_data(ttl=3600)
+    def get_draft(draft_id):
+        """Fetch a specific draft."""
+        url = f"{SleeperService.BASE_URL}/draft/{draft_id}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        return None
+
+    @staticmethod
+    @st.cache_data(ttl=3600)
+    def get_draft_picks(draft_id):
+        """Fetch all picks in a draft."""
+        url = f"{SleeperService.BASE_URL}/draft/{draft_id}/picks"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        return []
