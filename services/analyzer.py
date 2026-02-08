@@ -24,7 +24,7 @@ class LeagueAnalyzer:
         # Transaction map for quick lookup
         self.txn_map = {t['transaction_id']: t for t in self.transactions}
 
-        # Map (season, round, original_roster_id) -> player_name
+        # Map (season, round, original_roster_id) -> {'player': player_name, 'label': pick_label}
         self.pick_map = {}
 
     def initialize_drafts(self, draft_data):
@@ -51,11 +51,24 @@ class LeagueAnalyzer:
             for slot, rid in slot_to_roster.items():
                 roster_to_slots[rid].append(int(slot))
 
+            # Group picks by round to calculate pick-in-round
+            # Sort picks by overall pick number (or draft_slot if pick_no missing)
+            sorted_picks = sorted(picks, key=lambda x: x.get('pick_no', x.get('draft_slot', 0)))
+
+            round_counts = defaultdict(int)
+
             # Process picks
-            for pick in picks:
+            for pick in sorted_picks:
                 p_round = pick.get('round')
                 p_slot = pick.get('draft_slot')
                 player_id = pick.get('player_id')
+
+                # Calculate pick in round (1-based index within the round)
+                round_counts[p_round] += 1
+                pick_in_round = round_counts[p_round]
+
+                # Format label: "1.02"
+                pick_label = f"{p_round}.{pick_in_round:02d}"
 
                 if not player_id:
                     continue
@@ -73,7 +86,10 @@ class LeagueAnalyzer:
                 if original_roster_id:
                     key = (str(season), int(p_round), int(original_roster_id))
                     player_name = self.get_player_name(player_id)
-                    self.pick_map[key] = player_name
+                    self.pick_map[key] = {
+                        'player': player_name,
+                        'label': pick_label
+                    }
 
     def get_player_name(self, player_id):
         """Helper to resolve player ID to name."""
@@ -290,16 +306,8 @@ class LeagueAnalyzer:
                 # roster_id is who received the player
                 player_name = self.get_player_name(player_id)
 
-                # Get details
-                details = ""
-                if str(player_id) in self.all_players:
-                    p = self.all_players[str(player_id)]
-                    pos = p.get('position', '')
-                    team = p.get('team', '')
-                    if pos or team:
-                        details = f"({pos} - {team})" if pos and team else f"({pos or team})"
-
-                asset_str = f"**{player_name}** {details}"
+                # REQ: Remove details (pos/team)
+                asset_str = f"**{player_name}**"
 
                 if roster_id == proposer_rid:
                     p_receives.append(asset_str)
@@ -317,24 +325,32 @@ class LeagueAnalyzer:
 
                 original_owner_name = self.roster_name_map.get(original_owner_rid, f"Roster {original_owner_rid}")
 
-                # Format: 2026 Round 1 (Original: Name)
-                # Convert round to suffix (1st, 2nd, 3rd)
-                suffix = "th"
-                if 10 <= round_num % 100 <= 20:
-                    suffix = "th"
-                else:
-                    last = round_num % 10
-                    if last == 1: suffix = "st"
-                    elif last == 2: suffix = "nd"
-                    elif last == 3: suffix = "rd"
-
-                pick_str = f"**{season} {round_num}{suffix} Rd** (via {original_owner_name})"
-
                 # Check if resolved
                 pick_key = (str(season), int(round_num), int(original_owner_rid))
+
+                pick_str = ""
+
                 if pick_key in self.pick_map:
-                    resolved_player = self.pick_map[pick_key]
-                    pick_str += f" (Selected: {resolved_player})"
+                    # Pick has been made
+                    pick_data = self.pick_map[pick_key]
+                    label = pick_data['label']
+                    player = pick_data['player']
+                    # REQ: Use "1.02" format instead of "via..."
+                    pick_str = f"**{season} {label}** (Selected: {player})"
+                else:
+                    # Pick is future or not resolved
+                    # Format: 2026 Round 1 (Original: Name)
+                    # Convert round to suffix (1st, 2nd, 3rd)
+                    suffix = "th"
+                    if 10 <= round_num % 100 <= 20:
+                        suffix = "th"
+                    else:
+                        last = round_num % 10
+                        if last == 1: suffix = "st"
+                        elif last == 2: suffix = "nd"
+                        elif last == 3: suffix = "rd"
+
+                    pick_str = f"**{season} {round_num}{suffix} Rd** (via {original_owner_name})"
 
                 if new_owner_rid == proposer_rid:
                     p_receives.append(pick_str)
