@@ -103,31 +103,39 @@ def show(analyzer):
             trades = analyzer.get_trades_between(proposer, accepter)
 
             if trades:
-                trade_data = []
-                for txn in trades:
+                enriched_trades = analyzer.get_enriched_trades(trades, proposer, accepter)
+
+                for trade in enriched_trades:
                     # Format date
-                    ts = txn['created'] / 1000
-                    date_str = pd.to_datetime(ts, unit='s').strftime('%Y-%m-%d')
+                    ts = trade['date'] / 1000
+                    date_str = pd.to_datetime(ts, unit='s').strftime('%B %d, %Y')
 
-                    # Participants
-                    roster_ids = txn.get('roster_ids', [])
-                    participants = [analyzer.roster_name_map.get(rid, f"Roster {rid}") for rid in roster_ids]
+                    with st.container():
+                        st.markdown(f"**{date_str}**")
 
-                    # Assets
-                    assets = []
-                    adds = txn.get('adds') or {}
-                    for player_id in adds:
-                        name = analyzer.get_player_name(player_id)
-                        assets.append(name)
+                        t_col1, t_col2 = st.columns(2)
 
-                    trade_data.append({
-                        "Date": date_str,
-                        "Teams": ", ".join(participants),
-                        "Assets Moved": ", ".join(assets)
-                    })
+                        # Left Column: Proposer
+                        with t_col1:
+                            st.markdown(f"#### {trade['proposer']}")
+                            st.caption("Receives:")
+                            if trade['proposer_receives']:
+                                for asset in trade['proposer_receives']:
+                                    st.markdown(f"- {asset}")
+                            else:
+                                st.markdown("*(Nothing)*")
 
-                df_trades = pd.DataFrame(trade_data)
-                st.dataframe(df_trades, use_container_width=True)
+                        # Right Column: Accepter
+                        with t_col2:
+                            st.markdown(f"#### {trade['accepter']}")
+                            st.caption("Receives:")
+                            if trade['accepter_receives']:
+                                for asset in trade['accepter_receives']:
+                                    st.markdown(f"- {asset}")
+                            else:
+                                st.markdown("*(Nothing)*")
+
+                        st.divider()
             else:
                 st.info("No trades found matching selection.")
 

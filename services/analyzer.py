@@ -155,6 +155,146 @@ class LeagueAnalyzer:
 
         return sorted(trades, key=lambda x: x['created'], reverse=True)
 
+    def get_enriched_trades(self, trades, proposer_name, accepter_name):
+        """
+        Enriches a list of trade transactions with detailed asset information (players, picks)
+        grouped by who received them (Proposer vs Accepter).
+
+        Args:
+            trades: List of trade transactions.
+            proposer_name: Display name of the proposer (or wildcard).
+            accepter_name: Display name of the accepter (or wildcard).
+
+        Returns:
+            List of dictionaries:
+            {
+                'date': timestamp,
+                'transaction_id': str,
+                'proposer': str,
+                'accepter': str,
+                'proposer_receives': [], # List of strings/dicts describing assets
+                'accepter_receives': []
+            }
+        """
+        enriched = []
+
+        # Helper to get roster ID from name
+        # We need reverse map: Name -> [Roster IDs] (since names might not be unique, but usually are)
+        # But we only have roster_id -> name.
+        # We can scan roster_name_map.
+
+        for txn in trades:
+            ts = txn['created']
+
+            # Identify Proposer and Accepter Roster IDs for THIS transaction
+            # (Since proposer_name might be None/Wildcard, or symmetric)
+
+            roster_ids = txn.get('roster_ids', [])
+            if len(roster_ids) < 2:
+                continue
+
+            # If we know the specific proposer/accepter names from args, find their IDs in this txn
+            # If wildcard, we just pick the two participants (assuming 2-team trade for simplicity)
+
+            # Current participants in this txn
+            participants = {rid: self.roster_name_map.get(rid, f"Roster {rid}") for rid in roster_ids}
+
+            # Determining "Proposer" vs "Accepter" for the display
+            # If arguments provided specific names, use them to label the sides.
+            # If not (e.g. Total vs Total), we can just pick one as "Side A" and one as "Side B"
+            # However, typically 'creator' is the proposer.
+
+            creator_id = txn.get('creator')
+            proposer_rid = None
+            if creator_id:
+                for rid in roster_ids:
+                    if self.roster_owner_map.get(rid) == creator_id:
+                        proposer_rid = rid
+                        break
+
+            # If we can't identify creator, or it's not in roster_ids, just pick first as Proposer
+            if not proposer_rid:
+                proposer_rid = roster_ids[0]
+
+            # The other is Accepter (assuming 2 teams)
+            accepter_rid = None
+            for rid in roster_ids:
+                if rid != proposer_rid:
+                    accepter_rid = rid
+                    break
+
+            if not accepter_rid:
+                continue # Single team trade?
+
+            p_name = self.roster_name_map.get(proposer_rid, f"Roster {proposer_rid}")
+            a_name = self.roster_name_map.get(accepter_rid, f"Roster {accepter_rid}")
+
+            # Assets
+            p_receives = []
+            a_receives = []
+
+            # 1. Adds (Players received)
+            adds = txn.get('adds') or {}
+            for player_id, roster_id in adds.items():
+                # roster_id is who received the player
+                player_name = self.get_player_name(player_id)
+
+                # Get details
+                details = ""
+                if str(player_id) in self.all_players:
+                    p = self.all_players[str(player_id)]
+                    pos = p.get('position', '')
+                    team = p.get('team', '')
+                    if pos or team:
+                        details = f"({pos} - {team})" if pos and team else f"({pos or team})"
+
+                asset_str = f"**{player_name}** {details}"
+
+                if roster_id == proposer_rid:
+                    p_receives.append(asset_str)
+                elif roster_id == accepter_rid:
+                    a_receives.append(asset_str)
+
+            # 2. Draft Picks
+            picks = txn.get('draft_picks') or []
+            for pick in picks:
+                # pick: {season, round, roster_id (original owner), owner_id (new owner), ...}
+                season = pick.get('season')
+                round_num = pick.get('round')
+                original_owner_rid = pick.get('roster_id')
+                new_owner_rid = pick.get('owner_id')
+
+                original_owner_name = self.roster_name_map.get(original_owner_rid, f"Roster {original_owner_rid}")
+
+                # Format: 2026 Round 1 (Original: Name)
+                # Convert round to suffix (1st, 2nd, 3rd)
+                suffix = "th"
+                if 10 <= round_num % 100 <= 20:
+                    suffix = "th"
+                else:
+                    last = round_num % 10
+                    if last == 1: suffix = "st"
+                    elif last == 2: suffix = "nd"
+                    elif last == 3: suffix = "rd"
+
+                pick_str = f"**{season} {round_num}{suffix} Rd** (via {original_owner_name})"
+
+                if new_owner_rid == proposer_rid:
+                    p_receives.append(pick_str)
+                elif new_owner_rid == accepter_rid:
+                    a_receives.append(pick_str)
+
+            enriched.append({
+                'date': ts,
+                'transaction_id': txn['transaction_id'],
+                'proposer': p_name,
+                'accepter': a_name,
+                'proposer_receives': p_receives,
+                'accepter_receives': a_receives
+            })
+
+        return sorted(enriched, key=lambda x: x['date'], reverse=True)
+
     def get_trade_matrix(self):
         """
         Returns a pandas DataFrame representing the trade matrix.
