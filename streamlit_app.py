@@ -57,7 +57,15 @@ def load_data(selected_league_ids):
                     picks = SleeperService.get_draft_picks(d_id)
 
                     if full_draft:
-                        draft_data.append({'draft': full_draft, 'picks': picks})
+                        # FILTER: Exclude Startup Drafts
+                        # Heuristic: Rookie drafts are usually small (3-10 rounds).
+                        # Startup drafts are large (15-30+ rounds).
+                        # Let's use a threshold of 10 rounds.
+                        settings = full_draft.get('settings', {})
+                        rounds = settings.get('rounds', 0)
+
+                        if rounds <= 10:
+                            draft_data.append({'draft': full_draft, 'picks': picks})
 
             progress_bar.empty()
 
