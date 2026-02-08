@@ -71,7 +71,8 @@ def process_draft_history(draft_data, selected_user_id, analyzer_instance):
 
 # --- Page Logic ---
 
-st.set_page_config(page_title="Draft History", page_icon=":material/grid_on:", layout="wide")
+# Page config is handled in entrypoint now
+# st.set_page_config(...)
 
 # Ensure data is loaded
 if 'analyzer' not in st.session_state or not st.session_state.analyzer:

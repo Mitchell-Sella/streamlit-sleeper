@@ -3,12 +3,7 @@ import pandas as pd
 from services.sleeper import SleeperService
 from services.analyzer import LeagueAnalyzer
 
-# Page config
-st.set_page_config(
-    page_title="Sleeper League Analytics",
-    page_icon=":material/analytics:",
-    layout="wide"
-)
+# Page config is now handled in entrypoint
 
 # Initialize session state
 if 'user' not in st.session_state:

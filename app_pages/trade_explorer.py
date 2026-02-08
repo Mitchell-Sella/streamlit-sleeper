@@ -1,7 +1,8 @@
 import streamlit as st
 from views import stats as stats_view
 
-st.set_page_config(page_title="Trade Explorer", page_icon=":material/swap_horiz:", layout="wide")
+# Page config is handled in entrypoint now
+# st.set_page_config(...)
 
 if 'analyzer' in st.session_state and st.session_state.analyzer:
     stats_view.show(st.session_state.analyzer)
