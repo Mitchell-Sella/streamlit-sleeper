@@ -24,6 +24,57 @@ class LeagueAnalyzer:
         # Transaction map for quick lookup
         self.txn_map = {t['transaction_id']: t for t in self.transactions}
 
+        # Map (season, round, original_roster_id) -> player_name
+        self.pick_map = {}
+
+    def initialize_drafts(self, draft_data):
+        """
+        Ingests draft data to resolve traded picks to players.
+        draft_data: List of {'draft': draft_object, 'picks': [pick_objects]}
+        """
+        for entry in draft_data:
+            draft = entry['draft']
+            picks = entry['picks']
+
+            season = draft.get('season')
+            slot_to_roster = draft.get('slot_to_roster_id')
+
+            if not season or not slot_to_roster:
+                continue
+
+            # Create a map of slot -> roster_id (ensure types match)
+            # slot keys are usually strings "1", "2". roster_ids are ints.
+            # We need to map roster_id -> slot to find which column corresponds to which original owner.
+
+            # Note: A roster might map to multiple slots? Unlikely in standard leagues.
+            roster_to_slots = defaultdict(list)
+            for slot, rid in slot_to_roster.items():
+                roster_to_slots[rid].append(int(slot))
+
+            # Process picks
+            for pick in picks:
+                p_round = pick.get('round')
+                p_slot = pick.get('draft_slot')
+                player_id = pick.get('player_id')
+
+                if not player_id:
+                    continue
+
+                # Find which roster this slot belonged to originally
+                # Invert logic: find roster_id where p_slot in their slots
+                # (Slightly inefficient but N is small)
+
+                original_roster_id = None
+                for rid, slots in roster_to_slots.items():
+                    if p_slot in slots:
+                        original_roster_id = rid
+                        break
+
+                if original_roster_id:
+                    key = (str(season), int(p_round), int(original_roster_id))
+                    player_name = self.get_player_name(player_id)
+                    self.pick_map[key] = player_name
+
     def get_player_name(self, player_id):
         """Helper to resolve player ID to name."""
         if not player_id:
@@ -278,6 +329,12 @@ class LeagueAnalyzer:
                     elif last == 3: suffix = "rd"
 
                 pick_str = f"**{season} {round_num}{suffix} Rd** (via {original_owner_name})"
+
+                # Check if resolved
+                pick_key = (str(season), int(round_num), int(original_owner_rid))
+                if pick_key in self.pick_map:
+                    resolved_player = self.pick_map[pick_key]
+                    pick_str += f" (Selected: {resolved_player})"
 
                 if new_owner_rid == proposer_rid:
                     p_receives.append(pick_str)
