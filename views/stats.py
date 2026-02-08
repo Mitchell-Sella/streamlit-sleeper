@@ -69,6 +69,7 @@ def show(analyzer):
         matrix.columns.name = "Accepter"
 
         # Display with heatmap style
+        st.caption("Select a row (Proposer) or column (Accepter) to view details.")
         event = st.dataframe(
             matrix.style.background_gradient(cmap='Blues', axis=None, vmax=vmax),
             use_container_width=True,
@@ -77,18 +78,19 @@ def show(analyzer):
         )
 
         # Handle selection
-        if event and event.selection.rows and event.selection.columns:
+        if event and (event.selection.rows or event.selection.columns):
             # Get selected row index and column name
-            row_idx = event.selection.rows[0]
-            col_name = event.selection.columns[0]
+            proposer = None
+            accepter = None
 
-            # Retrieve row name from index
-            # matrix.index is "Proposer", but includes "Total Accepted" at the end
-            row_name = matrix.index[row_idx]
+            if event.selection.rows:
+                row_idx = event.selection.rows[0]
+                row_name = matrix.index[row_idx]
+                proposer = row_name if row_name != "Total Accepted" else None
 
-            # Map "Total" labels to wildcards
-            proposer = row_name if row_name != "Total Accepted" else None
-            accepter = col_name if col_name != "Total Proposed" else None
+            if event.selection.columns:
+                col_name = event.selection.columns[0]
+                accepter = col_name if col_name != "Total Proposed" else None
 
             st.divider()
             st.subheader("Selected Trades")
