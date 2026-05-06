@@ -47,3 +47,18 @@ def test_generate_trades():
     trade2 = next(t for t in trades if len(t['give']) == 1 and len(t['receive']) == 1 and t['give'][0]['name'] == 'Player B')
     assert trade2['give'][0]['name'] == 'Player B'
     assert trade2['receive'][0]['name'] == 'Player Y'
+
+    # Test Constraints
+    trades_constrained = generate_trades(
+        my_roster, other_roster, my_strengths, my_weaknesses,
+        off_limits=['Player A'],
+        force_receive=['Player Y']
+    )
+
+    assert len(trades_constrained) > 0
+    # Every constrained trade must receive Player Y and must NOT give Player A
+    for t in trades_constrained:
+        give_names = [p['name'] for p in t['give']]
+        receive_names = [p['name'] for p in t['receive']]
+        assert 'Player A' not in give_names
+        assert 'Player Y' in receive_names
