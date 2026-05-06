@@ -2,6 +2,16 @@ import requests
 import streamlit as st
 
 class SleeperService:
+    @staticmethod
+    @st.cache_data(ttl=3600)
+    def get_traded_picks(league_id):
+        """Fetch all traded picks in a league."""
+        url = f"{SleeperService.BASE_URL}/league/{league_id}/traded_picks"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        return []
+
     BASE_URL = "https://api.sleeper.app/v1"
 
     @staticmethod

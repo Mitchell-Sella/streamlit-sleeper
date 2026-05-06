@@ -9,6 +9,7 @@ class LeagueAnalyzer:
         self.rosters = rosters
         self.users = users
         self.all_players = all_players or {}
+        self.traded_picks = []
 
         # Map roster_id to owner_id
         self.roster_owner_map = {r['roster_id']: r['owner_id'] for r in rosters}
