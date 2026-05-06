@@ -199,14 +199,29 @@ if 'custom_rankings' in st.session_state:
 
 import itertools
 
-def generate_trades(my_roster, other_roster, my_strengths, my_weaknesses):
+def generate_trades(my_roster, other_roster, my_strengths, my_weaknesses, off_limits=None, force_give=None, force_receive=None):
     """
     Generate trade combinations where:
     - I give players from my strengths
     - I receive players from my weaknesses
     """
-    my_players = [p for p in my_roster['players'] if p['position'] in my_strengths]
-    other_players = [p for p in other_roster['players'] if p['position'] in my_weaknesses]
+    off_limits = off_limits or []
+    force_give = force_give or []
+    force_receive = force_receive or []
+
+    # My players: exclude off_limits. Include if in my_strengths OR in force_give
+    my_players = []
+    for p in my_roster['players']:
+        if p['name'] in off_limits:
+            continue
+        if p['position'] in my_strengths or p['name'] in force_give:
+            my_players.append(p)
+
+    # Other players: Include if in my_weaknesses OR in force_receive
+    other_players = []
+    for p in other_roster['players']:
+        if p['position'] in my_weaknesses or p['name'] in force_receive:
+            other_players.append(p)
 
     trades = []
 
@@ -240,9 +255,20 @@ def generate_trades(my_roster, other_roster, my_strengths, my_weaknesses):
                 'receive_val': op1['value'] + op2['value']
             })
 
-    # Filter fair trades
+    # Filter fair trades and constraints
     fair_trades = []
     for t in trades:
+        # Check constraints
+        if force_give:
+            give_names = [p['name'] for p in t['give']]
+            if not any(fg in give_names for fg in force_give):
+                continue
+
+        if force_receive:
+            receive_names = [p['name'] for p in t['receive']]
+            if not any(fr in receive_names for fr in force_receive):
+                continue
+
         # Ignore trades involving worthless players
         if t['give_val'] <= 0 or t['receive_val'] <= 0:
             continue
@@ -275,6 +301,24 @@ if 'custom_rankings' in st.session_state:
 
     st.write(f"**Seeking:** {', '.join(my_weaknesses)} | **Trading Away:** {', '.join(my_strengths)}")
 
+    st.divider()
+    st.markdown("### Trade Constraints (Optional)")
+
+    my_player_names = [p['name'] for p in selected_team_data['players']]
+
+    all_other_player_names = []
+    for other_rid, other_rdata in roster_strengths.items():
+        if other_rid != selected_roster_id:
+            all_other_player_names.extend([p['name'] for p in other_rdata['players']])
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        off_limits = st.multiselect("Off Limits (Do Not Trade)", options=my_player_names, help="Players you refuse to trade away.")
+    with col2:
+        force_give = st.multiselect("Force Give (Must Trade)", options=my_player_names, help="Players you absolutely want to trade away.")
+    with col3:
+        force_receive = st.multiselect("Force Receive (Must Acquire)", options=sorted(all_other_player_names), help="Players you absolutely want to acquire.")
+
     if st.button("Find Trades"):
         with st.spinner("Generating trade ideas..."):
             all_trades = []
@@ -283,7 +327,15 @@ if 'custom_rankings' in st.session_state:
                 if other_rid == selected_roster_id:
                     continue
 
-                trades = generate_trades(selected_team_data, other_rdata, my_strengths, my_weaknesses)
+                trades = generate_trades(
+                    selected_team_data,
+                    other_rdata,
+                    my_strengths,
+                    my_weaknesses,
+                    off_limits=off_limits,
+                    force_give=force_give,
+                    force_receive=force_receive
+                )
                 for t in trades:
                     t['partner'] = other_rdata['owner_name']
                     all_trades.append(t)
