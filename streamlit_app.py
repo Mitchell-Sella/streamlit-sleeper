@@ -162,10 +162,11 @@ with st.sidebar:
 # Define Pages
 trade_page = st.Page("app_pages/trade_explorer.py", title="Trade Explorer", icon=":material/swap_horiz:", default=True)
 draft_page = st.Page("app_pages/draft_history.py", title="Draft History", icon=":material/grid_on:")
+trade_finder_page = st.Page("app_pages/trade_finder.py", title="Trade Finder", icon=":material/search:")
 
 # Setup Navigation
 pg = st.navigation({
-    "Analysis": [trade_page, draft_page]
+    "Analysis": [trade_page, draft_page, trade_finder_page]
 })
 
 # Run Navigation
