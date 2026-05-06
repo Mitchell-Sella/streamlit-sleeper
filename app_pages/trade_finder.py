@@ -3,6 +3,7 @@ import pandas as pd
 import io
 import math
 import re
+import difflib
 
 def get_tier_value(tier):
     tier_values = {
@@ -35,7 +36,13 @@ def get_tier_value(tier):
         return 0
 
 def clean_name(name):
-    return re.sub(r'[^a-z0-9]', '', str(name).lower())
+    # Strip punctuation and convert to lowercase
+    name = re.sub(r'[^\w\s]', '', str(name).lower())
+    tokens = name.split()
+    suffixes = {'jr', 'sr', 'ii', 'iii', 'iv', 'v'}
+    if tokens and tokens[-1] in suffixes:
+        tokens = tokens[:-1]
+    return ''.join(tokens)
 
 def process_uploaded_file(uploaded_file, analyzer):
     try:
@@ -80,6 +87,12 @@ def process_uploaded_file(uploaded_file, analyzer):
 
             c_name = clean_name(player_name)
             pid = player_name_to_id.get(c_name)
+
+            # Fallback to fuzzy matching if no exact match
+            if not pid:
+                matches = difflib.get_close_matches(c_name, player_name_to_id.keys(), n=1, cutoff=0.8)
+                if matches:
+                    pid = player_name_to_id[matches[0]]
 
             if pid:
                 parsed_data[pid] = {

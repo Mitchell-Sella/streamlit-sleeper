@@ -13,6 +13,12 @@ def test_clean_name():
     assert clean_name("Ja'Marr Chase") == "jamarrchase"
     assert clean_name("T.J. Hockenson") == "tjhockenson"
     assert clean_name("D'Andre Swift") == "dandreswift"
+    assert clean_name("Michael Pittman Jr.") == "michaelpittman"
+    assert clean_name("Patrick Mahomes II") == "patrickmahomes"
+    assert clean_name("A.J. Brown") == "ajbrown"
+    assert clean_name("AJ Brown") == "ajbrown"
+    assert clean_name("Kenneth Walker III") == "kennethwalker"
+    assert clean_name("Travis Etienne Jr.") == "travisetienne"
 
 def test_generate_trades():
     my_roster = {
