@@ -37,6 +37,7 @@ def load_data(selected_league_ids):
             # 2. Fetch rosters & users (from current league mostly)
             rosters = SleeperService.get_rosters(league_id)
             users = SleeperService.get_users_in_league(league_id)
+            traded_picks = SleeperService.get_traded_picks(league_id)
 
             # 3. Fetch players
             all_players = SleeperService.get_all_players()
@@ -74,6 +75,7 @@ def load_data(selected_league_ids):
 
             # Initialize Analyzer
             analyzer = LeagueAnalyzer(transactions, rosters, users, all_players)
+            analyzer.traded_picks = traded_picks
             analyzer.initialize_drafts(draft_data)
             st.session_state.analyzer = analyzer
 

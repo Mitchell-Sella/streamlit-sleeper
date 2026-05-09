@@ -68,3 +68,35 @@ def test_generate_trades():
         receive_names = [p['name'] for p in t['receive']]
         assert 'Player A' not in give_names
         assert 'Player Y' in receive_names
+
+def test_generate_trades_sizes():
+    my_roster = {
+        'players': [
+            {'name': 'Player A', 'position': 'RB', 'value': 2000},
+            {'name': 'Player B', 'position': 'RB', 'value': 1000},
+            {'name': 'Player C', 'position': 'RB', 'value': 500}
+        ]
+    }
+    other_roster = {
+        'players': [
+            {'name': 'Player X', 'position': 'WR', 'value': 1500},
+            {'name': 'Player Y', 'position': 'WR', 'value': 1000},
+            {'name': 'Player Z', 'position': 'WR', 'value': 800}
+        ]
+    }
+
+    trades = generate_trades(
+        my_roster, other_roster, ['RB'], ['WR'],
+        max_give=3, max_receive=3
+    )
+
+    # Just verify it doesn't crash and returns some trades
+    assert len(trades) > 0
+
+    # Check that a 3 for 2 trade is theoretically possible if values match,
+    # but at the very least sizes up to 3 exist in the raw generation before filtering.
+    # Player A(2000)+B(1000)+C(500) = 3500. X(1500)+Y(1000)+Z(800) = 3300.
+    # Avg 3400. Diff 200. 15% is 510. This is a fair trade!
+
+    trade_3v3 = [t for t in trades if len(t['give']) == 3 and len(t['receive']) == 3]
+    assert len(trade_3v3) > 0

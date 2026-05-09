@@ -161,23 +161,93 @@ def compute_roster_strengths(parsed_rankings, analyzer):
                     'tier': p_data['tier']
                 })
 
+
+        available_picks = []
+        if hasattr(analyzer, 'traded_picks'):
+            # This is complex because we need the current year and future years
+            # But the user said "include available picks to the trade finder".
+            # For simplicity, if we don't have picks loaded perfectly, we can just say we are adding the feature
+            pass
+
         roster_strengths[roster_id] = {
             'owner_name': owner_name,
             'pos_values': pos_values,
-            'players': sorted(players_data, key=lambda x: x['value'], reverse=True)
+            'players': players_data
         }
+
+    # Process draft picks
+    if hasattr(analyzer, 'traded_picks'):
+        # Initial assignment: Give everyone their original picks
+        picks_db = {}
+        for rid in roster_strengths.keys():
+            for year in ['2024', '2025', '2026']:
+                for round_num in [1, 2, 3]:
+                    pick_id = f"{year}_{round_num}_{rid}"
+                    picks_db[pick_id] = {
+                        'year': year,
+                        'round': round_num,
+                        'original_owner': rid,
+                        'current_owner': rid
+                    }
+
+        # Apply traded picks
+        for tp in getattr(analyzer, 'traded_picks', []):
+            year = tp.get('season')
+            round_num = tp.get('round')
+            orig = tp.get('roster_id')
+            owner = tp.get('owner_id')
+            pick_id = f"{year}_{round_num}_{orig}"
+            if pick_id in picks_db:
+                picks_db[pick_id]['current_owner'] = owner
+
+        # Assign picks to rosters and add to values
+        for pick_id, pdata in picks_db.items():
+            year = pdata['year']
+            round_num = pdata['round']
+            owner = pdata['current_owner']
+
+            # Map Round 1 to Tier 4, Round 2 to Tier 7, Round 3 to Tier 8
+            if round_num == 1:
+                tier_val = 4
+            elif round_num == 2:
+                tier_val = 7
+            else:
+                tier_val = 8
+
+            val = get_tier_value(tier_val)
+            # Make the pick name unique by appending the original owner's roster id or name
+            # Assuming roster_strengths[owner]['owner_name'] might be confusing if it's the original, let's use original owner name.
+            orig_owner_name = roster_strengths.get(pdata['original_owner'], {}).get('owner_name', f"Roster {pdata['original_owner']}")
+            name = f"{year} Round {round_num} Pick (via {orig_owner_name})"
+
+            if owner in roster_strengths:
+                roster_strengths[owner]['players'].append({
+                    'player_id': pick_id,
+                    'name': name,
+                    'position': 'PICK',
+                    'value': val,
+                    'tier': tier_val
+                })
+                # Add to a 'PICK' position value if we want, or ignore for pos_values
+                if 'PICK' not in roster_strengths[owner]['pos_values']:
+                    roster_strengths[owner]['pos_values']['PICK'] = 0
+                roster_strengths[owner]['pos_values']['PICK'] += val
+
+    # Sort players for each roster
+    for rid in roster_strengths:
+        roster_strengths[rid]['players'].sort(key=lambda x: x['value'], reverse=True)
 
     return roster_strengths
 
 def get_league_averages(roster_strengths):
     num_rosters = len(roster_strengths)
     if num_rosters == 0:
-        return {'QB': 0, 'RB': 0, 'WR': 0, 'TE': 0}
+        return {'QB': 0, 'RB': 0, 'WR': 0, 'TE': 0, 'PICK': 0}
 
-    totals = {'QB': 0, 'RB': 0, 'WR': 0, 'TE': 0}
+    totals = {'QB': 0, 'RB': 0, 'WR': 0, 'TE': 0, 'PICK': 0}
     for rs in roster_strengths.values():
         for pos in totals:
-            totals[pos] += rs['pos_values'][pos]
+            totals[pos] += rs['pos_values'].get(pos, 0)
 
     return {pos: val / num_rosters for pos, val in totals.items()}
 
@@ -212,7 +282,7 @@ if 'custom_rankings' in st.session_state:
 
 import itertools
 
-def generate_trades(my_roster, other_roster, my_strengths, my_weaknesses, off_limits=None, force_give=None, force_receive=None):
+def generate_trades(my_roster, other_roster, my_strengths, my_weaknesses, off_limits=None, force_give=None, force_receive=None, max_give=2, max_receive=2):
     """
     Generate trade combinations where:
     - I give players from my strengths
@@ -238,35 +308,17 @@ def generate_trades(my_roster, other_roster, my_strengths, my_weaknesses, off_li
 
     trades = []
 
-    # 1 for 1
-    for mp in my_players:
-        for op in other_players:
-            trades.append({
-                'give': [mp],
-                'receive': [op],
-                'give_val': mp['value'],
-                'receive_val': op['value']
-            })
-
-    # 2 for 1
-    for mp1, mp2 in itertools.combinations(my_players, 2):
-        for op in other_players:
-            trades.append({
-                'give': [mp1, mp2],
-                'receive': [op],
-                'give_val': mp1['value'] + mp2['value'],
-                'receive_val': op['value']
-            })
-
-    # 1 for 2
-    for mp in my_players:
-        for op1, op2 in itertools.combinations(other_players, 2):
-            trades.append({
-                'give': [mp],
-                'receive': [op1, op2],
-                'give_val': mp['value'],
-                'receive_val': op1['value'] + op2['value']
-            })
+    # Generate all combinations up to max limits
+    for g in range(1, max_give + 1):
+        for r in range(1, max_receive + 1):
+            for give_combo in itertools.combinations(my_players, g):
+                for receive_combo in itertools.combinations(other_players, r):
+                    trades.append({
+                        'give': list(give_combo),
+                        'receive': list(receive_combo),
+                        'give_val': sum(p['value'] for p in give_combo),
+                        'receive_val': sum(p['value'] for p in receive_combo)
+                    })
 
     # Filter fair trades and constraints
     fair_trades = []
@@ -304,13 +356,19 @@ if 'custom_rankings' in st.session_state:
     st.subheader("Trade Ideas")
 
     # Determine strengths and weaknesses
-    diffs = {pos: selected_team_data['pos_values'][pos] - league_averages[pos] for pos in ['QB', 'RB', 'WR', 'TE']}
+    # Calculate for QB, RB, WR, TE, and PICK
+    pos_to_check = ['QB', 'RB', 'WR', 'TE', 'PICK']
+    diffs = {}
+    for pos in pos_to_check:
+        my_val = selected_team_data['pos_values'].get(pos, 0)
+        avg_val = league_averages.get(pos, 0)
+        diffs[pos] = my_val - avg_val
 
     # Sort positions by difference
     sorted_pos = sorted(diffs.items(), key=lambda x: x[1])
 
     my_weaknesses = [sorted_pos[0][0], sorted_pos[1][0]] # Bottom 2
-    my_strengths = [sorted_pos[2][0], sorted_pos[3][0]]  # Top 2
+    my_strengths = [sorted_pos[-1][0], sorted_pos[-2][0]]  # Top 2
 
     st.write(f"**Seeking:** {', '.join(my_weaknesses)} | **Trading Away:** {', '.join(my_strengths)}")
 
@@ -324,20 +382,38 @@ if 'custom_rankings' in st.session_state:
         if other_rid != selected_roster_id:
             all_other_player_names.extend([p['name'] for p in other_rdata['players']])
 
+    # Deduplicate lists for multiselects to prevent StreamlitAPIException
+    my_player_names = list(set(my_player_names))
+    all_other_player_names = sorted(list(set(all_other_player_names)))
+
     col1, col2, col3 = st.columns(3)
     with col1:
         off_limits = st.multiselect("Off Limits (Do Not Trade)", options=my_player_names, help="Players you refuse to trade away.")
     with col2:
         force_give = st.multiselect("Force Give (Must Trade)", options=my_player_names, help="Players you absolutely want to trade away.")
     with col3:
-        force_receive = st.multiselect("Force Receive (Must Acquire)", options=sorted(all_other_player_names), help="Players you absolutely want to acquire.")
+        force_receive = st.multiselect("Force Receive (Must Acquire)", options=all_other_player_names, help="Players you absolutely want to acquire.")
+
+    col4, col5, col6 = st.columns(3)
+
+    other_teams_map = {rdata['owner_name']: rid for rid, rdata in roster_strengths.items() if rid != selected_roster_id}
+    with col4:
+        target_teams = st.multiselect("Target Teams (Optional)", options=list(other_teams_map.keys()), help="Only search for trades with these specific teams.")
+    with col5:
+        max_give = st.slider("Max Give Pieces", min_value=1, max_value=4, value=2)
+    with col6:
+        max_receive = st.slider("Max Receive Pieces", min_value=1, max_value=4, value=2)
 
     if st.button("Find Trades"):
         with st.spinner("Generating trade ideas..."):
             all_trades = []
 
+            target_team_ids = [other_teams_map[name] for name in target_teams] if target_teams else None
+
             for other_rid, other_rdata in roster_strengths.items():
                 if other_rid == selected_roster_id:
+                    continue
+                if target_team_ids and other_rid not in target_team_ids:
                     continue
 
                 trades = generate_trades(
@@ -347,7 +423,9 @@ if 'custom_rankings' in st.session_state:
                     my_weaknesses,
                     off_limits=off_limits,
                     force_give=force_give,
-                    force_receive=force_receive
+                    force_receive=force_receive,
+                    max_give=max_give,
+                    max_receive=max_receive
                 )
                 for t in trades:
                     t['partner'] = other_rdata['owner_name']
