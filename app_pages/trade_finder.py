@@ -4,6 +4,8 @@ import io
 import math
 import re
 import difflib
+import json
+import google.generativeai as genai
 
 def get_tier_value(tier):
     tier_values = {
@@ -118,6 +120,19 @@ except Exception:
 
 st.title("Trade Finder")
 st.markdown("Upload your custom player rankings/tiers to find advantageous trades.")
+
+with st.expander("AI Trade Evaluator (Gemini)"):
+    api_key = st.text_input("Google Gemini API Key (optional)", type="password")
+    if api_key:
+        try:
+            genai.configure(api_key=api_key)
+            st.session_state.gemini_configured = True
+            st.success("Gemini API key configured successfully!")
+        except Exception as e:
+            st.session_state.gemini_configured = False
+            st.error(f"Failed to configure Gemini: {e}")
+    else:
+        st.session_state.gemini_configured = False
 
 uploaded_file = st.file_uploader("Upload CSV/TSV Rankings", type=["csv", "tsv", "txt"])
 
@@ -438,8 +453,78 @@ if 'custom_rankings' in st.session_state:
             else:
                 st.success(f"Found {len(all_trades)} potential fair trades!")
 
+                top_trades = all_trades[:50]
+
+                if st.session_state.get('gemini_configured', False):
+                    with st.spinner("Asking Gemini to evaluate the best trades..."):
+                        trade_descriptions = []
+                        for i, t in enumerate(top_trades):
+                            give_names = ", ".join([f"{p['name']} ({p['position']})" for p in t['give']])
+                            receive_names = ", ".join([f"{p['name']} ({p['position']})" for p in t['receive']])
+                            trade_descriptions.append(
+                                f"Trade {i+1}: Partner: {t['partner']}\n"
+                                f"I Give: {give_names} (Total Value: {t['give_val']})\n"
+                                f"I Receive: {receive_names} (Total Value: {t['receive_val']})\n"
+                                f"Net Value Gain: {t['net']:.1f}\n"
+                            )
+
+                        prompt = (
+                            f"You are an expert fantasy football analyst.\n"
+                            f"My team has strengths at: {', '.join(my_strengths)}.\n"
+                            f"My team has weaknesses at: {', '.join(my_weaknesses)}.\n\n"
+                            f"I have generated {len(top_trades)} potential fair trades based on value algorithms.\n"
+                            f"Here are the trades:\n"
+                            + "\n".join(trade_descriptions) +
+                            f"\n\nPlease review these trades and select the top 3-5 BEST trades for my team.\n"
+                            f"Consider my team's strengths and weaknesses, positional scarcity, and overall value gained.\n"
+                            f"Return ONLY a JSON array of objects. Do not include any markdown formatting like ```json, just the raw JSON text.\n"
+                            f"Each object should have these keys:\n"
+                            f"- 'trade_index': The number of the trade from the list provided (e.g., 1, 2, 3).\n"
+                            f"- 'reasoning': A brief explanation of why this trade is highly recommended for my team.\n"
+                            f"- 'rank': The ranking you give this trade (1 being the best).\n"
+                        )
+
+                        try:
+                            model = genai.GenerativeModel('gemini-2.5-flash')
+                            response = model.generate_content(prompt)
+
+                            response_text = response.text.strip()
+                            # Handle potential markdown wrappers
+                            if response_text.startswith("```json"):
+                                response_text = response_text[7:]
+                            elif response_text.startswith("```"):
+                                response_text = response_text[3:]
+                            if response_text.endswith("```"):
+                                response_text = response_text[:-3]
+                            response_text = response_text.strip()
+
+                            try:
+                                best_trades_data = json.loads(response_text)
+                                st.subheader("🤖 Gemini's Top Picks")
+                                for rank_data in sorted(best_trades_data, key=lambda x: x.get('rank', 99)):
+                                    idx = rank_data.get('trade_index')
+                                    if idx is not None and 1 <= idx <= len(top_trades):
+                                        t = top_trades[idx - 1]
+                                        give_names = ", ".join([f"{p['name']} ({p['position']})" for p in t['give']])
+                                        receive_names = ", ".join([f"{p['name']} ({p['position']})" for p in t['receive']])
+
+                                        st.markdown(f"### Rank {rank_data.get('rank')}: Trade with {t['partner']}")
+                                        st.write(f"**Reasoning:** {rank_data.get('reasoning')}")
+                                        st.write(f"**Give:** {give_names}")
+                                        st.write(f"**Receive:** {receive_names}")
+                                        st.write(f"**Net Value Gain:** {t['net']:.1f}")
+                                        st.divider()
+                            except json.JSONDecodeError as e:
+                                # Fallback if JSON parsing fails
+                                st.error("Failed to parse Gemini's recommendations.")
+                                st.write("Raw response:")
+                                st.write(response.text)
+                        except Exception as e:
+                            st.error(f"Error calling Gemini API: {e}")
+
+                st.subheader("All Calculated Fair Trades")
                 # Show top 50 trades
-                for i, t in enumerate(all_trades[:50]):
+                for i, t in enumerate(top_trades):
                     give_names = ", ".join([f"{p['name']} ({p['position']})" for p in t['give']])
                     receive_names = ", ".join([f"{p['name']} ({p['position']})" for p in t['receive']])
 

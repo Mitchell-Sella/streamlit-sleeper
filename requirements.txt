@@ -5,3 +5,4 @@ numpy
 networkx
 streamlit-agraph
 matplotlib
+google-generativeai
