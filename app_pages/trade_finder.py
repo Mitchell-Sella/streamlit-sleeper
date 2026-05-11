@@ -299,7 +299,25 @@ if 'custom_rankings' in st.session_state:
     roster_strengths = compute_roster_strengths(parsed_rankings, analyzer)
     league_averages = get_league_averages(roster_strengths)
 
+    # Extract starting positions
+    starter_counts = {'QB': 0, 'RB': 0, 'WR': 0, 'TE': 0, 'FLEX': 0, 'SUPER_FLEX': 0}
+    if 'selected_league' in st.session_state and st.session_state.selected_league:
+        roster_positions = st.session_state.selected_league.get('roster_positions', [])
+        for pos in roster_positions:
+            if pos in starter_counts:
+                starter_counts[pos] += 1
+
+
     st.subheader("Team Strengths Analysis")
+
+    if sum(starter_counts.values()) > 0:
+        st.markdown("**Starting Lineup Requirements:**")
+        reqs = []
+        for pos, count in starter_counts.items():
+            if count > 0:
+                reqs.append(f"{count} {pos}")
+        st.write(" | ".join(reqs))
+
 
     # Let user select their team
     team_options = {rs['owner_name']: rid for rid, rs in roster_strengths.items()}
@@ -400,15 +418,63 @@ if 'custom_rankings' in st.session_state:
 
     # Determine strengths and weaknesses
     # Calculate for QB, RB, WR, TE, and PICK
-    pos_to_check = ['QB', 'RB', 'WR', 'TE', 'PICK']
+    pos_to_check = ['QB', 'RB', 'WR', 'TE']
     diffs = {}
-    for pos in pos_to_check:
-        my_val = selected_team_data['pos_values'].get(pos, 0)
-        avg_val = league_averages.get(pos, 0)
-        diffs[pos] = my_val - avg_val
 
-    # Sort positions by difference
-    sorted_pos = sorted(diffs.items(), key=lambda x: x[1])
+    total_starters = sum(starter_counts.values())
+
+    if total_starters > 0:
+        # Use starting lineup spots to find strengths/weaknesses
+        for pos in pos_to_check:
+            # How many spots specifically require this position
+            req_spots = starter_counts.get(pos, 0)
+
+            # Flex spots can use RB, WR, TE. Superflex can use QB, RB, WR, TE.
+            # To be simple, let's just count the top N players at this position where N = required spots + some flex weighting
+            # Instead of a complex flex resolution, we just see if they have enough players to fill their mandatory spots.
+            # Then add in their total positional value vs league average as a secondary factor.
+
+            # Count how many players at this position have a non-zero value
+            pos_players = [p for p in selected_team_data['players'] if p['position'] == pos and p['value'] > 0]
+
+            # We assign a score based on (value of top N players) / (expected value of N average starters)
+            # Since we don't have expected value of average starter, we can just look at:
+            # Does this team have fewer players with value > 0 than required spots? -> HUGE weakness
+            # Or we can just use the value of their top X players vs league average.
+
+            # Let's count how many extra good players they have
+            # Let's define a "good" player as tier <= 7 (value >= 400).
+            num_good_players = len([p for p in pos_players if p['value'] >= 400])
+
+            # We want to identify if they have a surplus or deficit of good players compared to required spots.
+            # This is simpler and arguably better.
+
+            surplus = num_good_players - req_spots
+
+            # If there's a tie in surplus, break tie with overall pos_values vs league average
+            my_val = selected_team_data['pos_values'].get(pos, 0)
+            avg_val = league_averages.get(pos, 0)
+            val_diff = my_val - avg_val
+
+            diffs[pos] = (surplus, val_diff)
+
+        # Add PICK back, picks don't have starting spots, so just base it on value diff
+        my_pick_val = selected_team_data['pos_values'].get('PICK', 0)
+        avg_pick_val = league_averages.get('PICK', 0)
+        # To make it comparable to surplus, let's say a 1st round pick (value ~1000) is like 1 good player surplus.
+        # So we scale val_diff / 1000
+        pick_val_diff = my_pick_val - avg_pick_val
+        diffs['PICK'] = (pick_val_diff / 1000.0, pick_val_diff)
+
+    else:
+        # Fallback if no starting lineup spots
+        for pos in pos_to_check + ['PICK']:
+            my_val = selected_team_data['pos_values'].get(pos, 0)
+            avg_val = league_averages.get(pos, 0)
+            diffs[pos] = (0, my_val - avg_val) # Primary sort 0, secondary is val diff
+
+    # Sort positions by difference (tuple: surplus, val_diff)
+    sorted_pos = sorted(diffs.items(), key=lambda x: (x[1][0], x[1][1]))
 
     my_weaknesses = [sorted_pos[0][0], sorted_pos[1][0]] # Bottom 2
     my_strengths = [sorted_pos[-1][0], sorted_pos[-2][0]]  # Top 2
