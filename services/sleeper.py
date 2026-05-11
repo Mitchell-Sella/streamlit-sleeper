@@ -2,6 +2,7 @@ import requests
 import streamlit as st
 
 class SleeperService:
+    BASE_URL = "https://api.sleeper.app/v1"
     @staticmethod
     @st.cache_data(ttl=3600)
     def get_traded_picks(league_id):
@@ -12,7 +13,6 @@ class SleeperService:
             return response.json()
         return []
 
-    BASE_URL = "https://api.sleeper.app/v1"
 
     @staticmethod
     @st.cache_data(ttl=3600)
