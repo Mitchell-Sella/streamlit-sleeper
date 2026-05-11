@@ -192,10 +192,19 @@ def compute_roster_strengths(parsed_rankings, analyzer):
 
     # Process draft picks
     if hasattr(analyzer, 'traded_picks'):
+        # Determine the years to use for picks based on the current season
+        start_year = 2024
+        try:
+            if 'selected_league' in st.session_state and st.session_state.selected_league:
+                start_year = int(st.session_state.selected_league.get('season', 2024))
+        except Exception:
+            pass
+        pick_years = [str(start_year), str(start_year + 1), str(start_year + 2)]
+
         # Initial assignment: Give everyone their original picks
         picks_db = {}
         for rid in roster_strengths.keys():
-            for year in ['2024', '2025', '2026']:
+            for year in pick_years:
                 for round_num in [1, 2, 3]:
                     pick_id = f"{year}_{round_num}_{rid}"
                     picks_db[pick_id] = {
