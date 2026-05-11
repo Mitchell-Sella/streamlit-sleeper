@@ -55,12 +55,14 @@ def process_uploaded_file(uploaded_file, analyzer):
         else:
             df = pd.read_csv(io.StringIO(content))
 
-        # Ensure we have Player and AVGTier/Tier columns
-        player_col = next((col for col in df.columns if col.lower() == 'player'), None)
+        # Ensure we have Player and AVGTier/Tier/Value columns
+        player_col = next((col for col in df.columns if col.lower() in ['player', 'name']), None)
         tier_col = next((col for col in df.columns if col.lower() in ['avgtier', 'tier']), None)
+        value_col = next((col for col in df.columns if col.lower() == 'value'), None)
+        pos_col = next((col for col in df.columns if col.lower() in ['pos', 'position']), None)
 
-        if not player_col or not tier_col:
-            st.error("Uploaded file must contain 'Player' and 'AVGTier' (or 'Tier') columns.")
+        if not player_col or (not tier_col and not value_col):
+            st.error("Uploaded file must contain 'Player' (or 'Name') and either 'AVGTier', 'Tier', or 'Value' columns.")
             return None
 
         # Build player name matching mapping from analyzer
@@ -84,8 +86,16 @@ def process_uploaded_file(uploaded_file, analyzer):
         parsed_data = {}
         for _, row in df.iterrows():
             player_name = str(row[player_col])
-            tier_val = row[tier_col]
-            value = get_tier_value(tier_val)
+
+            tier_val = row[tier_col] if tier_col else None
+
+            if value_col:
+                try:
+                    value = float(row[value_col])
+                except (ValueError, TypeError):
+                    value = 0.0
+            else:
+                value = get_tier_value(tier_val)
 
             c_name = clean_name(player_name)
             pid = player_name_to_id.get(c_name)
@@ -97,11 +107,16 @@ def process_uploaded_file(uploaded_file, analyzer):
                     pid = player_name_to_id[matches[0]]
 
             if pid:
+                if pos_col and pd.notna(row.get(pos_col)):
+                    position = row[pos_col]
+                else:
+                    position = analyzer.all_players[pid].get('position')
+
                 parsed_data[pid] = {
                     'name': player_name,
                     'tier': tier_val,
                     'value': value,
-                    'position': row.get('POS', analyzer.all_players[pid].get('position'))
+                    'position': position
                 }
         return parsed_data
     except Exception as e:
@@ -159,7 +174,11 @@ def compute_roster_strengths(parsed_rankings, analyzer):
         pos_values = {'QB': 0, 'RB': 0, 'WR': 0, 'TE': 0}
         players_data = []
 
-        for pid in roster.get('players', []):
+        players_list = roster.get('players')
+        if players_list is None:
+            players_list = []
+
+        for pid in players_list:
             if pid in parsed_rankings:
                 p_data = parsed_rankings[pid]
                 pos = p_data['position']
