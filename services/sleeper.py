@@ -26,7 +26,7 @@ class SleeperService:
 
     @staticmethod
     @st.cache_data(ttl=3600)
-    def get_all_leagues(user_id, sport="nfl", season="2024"):
+    def get_all_leagues(user_id, sport="nfl", season="2026"):
         """Fetch all leagues for a user for a given sport and season."""
         url = f"{SleeperService.BASE_URL}/user/{user_id}/leagues/{sport}/{season}"
         response = requests.get(url)

@@ -98,7 +98,7 @@ def load_user_data():
             found_leagues = []
             # Try a range of years to find active leagues
             # Prioritize 2025 to capture new draft data if available
-            for year in ["2025", "2024", "2023"]:
+            for year in ["2026", "2025", "2024", "2023"]:
                 leagues = SleeperService.get_all_leagues(user['user_id'], season=year)
                 if leagues:
                     found_leagues = leagues
@@ -106,7 +106,7 @@ def load_user_data():
 
             st.session_state.leagues = found_leagues
             if not found_leagues:
-                st.warning("No recent leagues found (2023-2025).")
+                st.warning("No recent leagues found (2023-2026).")
         else:
             st.error("User not found.")
             st.session_state.user = None
