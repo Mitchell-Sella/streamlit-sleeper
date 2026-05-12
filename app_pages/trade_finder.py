@@ -212,10 +212,10 @@ def compute_roster_strengths(parsed_rankings, analyzer):
     # Process draft picks
     if hasattr(analyzer, 'traded_picks'):
         # Determine the years to use for picks based on the current season
-        start_year = 2024
+        start_year = 2026
         try:
             if 'selected_league' in st.session_state and st.session_state.selected_league:
-                start_year = int(st.session_state.selected_league.get('season', 2024))
+                start_year = int(st.session_state.selected_league.get('season', 2026))
         except Exception:
             pass
         pick_years = [str(start_year), str(start_year + 1), str(start_year + 2)]
@@ -443,8 +443,23 @@ if 'custom_rankings' in st.session_state:
             # Or we can just use the value of their top X players vs league average.
 
             # Let's count how many extra good players they have
-            # Let's define a "good" player as tier <= 7 (value >= 400).
-            num_good_players = len([p for p in pos_players if p['value'] >= 400])
+            # Calculate dynamic threshold based on uploaded rankings
+            all_values = []
+            if 'custom_rankings' in st.session_state:
+                all_values = [p['value'] for p in st.session_state.custom_rankings.values() if p['value'] > 0]
+
+            if all_values:
+                all_values.sort(reverse=True)
+                # Assume 12 teams, top 72 players (6 starters per team) are "good"
+                if len(all_values) >= 72:
+                    good_threshold = all_values[71]
+                else:
+                    import statistics
+                    good_threshold = statistics.median(all_values) # Median if fewer than 72 players
+            else:
+                good_threshold = 400
+
+            num_good_players = len([p for p in pos_players if p['value'] >= good_threshold])
 
             # We want to identify if they have a surplus or deficit of good players compared to required spots.
             # This is simpler and arguably better.
