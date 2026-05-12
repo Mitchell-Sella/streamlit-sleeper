@@ -585,11 +585,14 @@ if 'custom_rankings' in st.session_state:
                             f"Here are the trades:\n"
                             + "\n".join(trade_descriptions) +
                             f"\n\nPlease review these trades and select the top 3-5 BEST trades for my team.\n"
-                            f"Consider my team's strengths and weaknesses, positional scarcity, and overall value gained.\n"
-                            f"Return ONLY a JSON array of objects. Do not include any markdown formatting like ```json, just the raw JSON text.\n"
+                            f"CRITICAL INSTRUCTIONS:\n"
+                            f"- You must base your reasoning PURELY on the mathematical values, positional needs, and net value gain provided in this prompt.\n"
+                            f"- DO NOT supplement your reasoning with any outside knowledge about the players (e.g., do not mention their age, rookie status, team situation, past performance, or injury history).\n"
+                            f"- Assume the valuations provided already account for all of those factors.\n"
+                            f"- Return ONLY a JSON array of objects. Do not include any markdown formatting like ```json, just the raw JSON text.\n"
                             f"Each object should have these keys:\n"
                             f"- 'trade_index': The number of the trade from the list provided (e.g., 1, 2, 3).\n"
-                            f"- 'reasoning': A brief explanation of why this trade is highly recommended for my team.\n"
+                            f"- 'reasoning': A brief explanation of why this trade is highly recommended for my team, based ONLY on the numbers and positions provided.\n"
                             f"- 'rank': The ranking you give this trade (1 being the best).\n"
                         )
 
