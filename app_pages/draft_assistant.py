@@ -14,14 +14,15 @@ st.title("Draft Assistant")
 
 # Select Draft
 drafts = SleeperService.get_drafts_in_league(league['league_id'])
-if not drafts:
-    st.warning("No drafts found for this league.")
+active_drafts = [d for d in drafts if d['status'] != 'complete']
+
+if not active_drafts:
+    st.warning("No active drafts found for this league.")
     st.stop()
 
-# Let user pick draft
-draft_options = {f"{d['season']} - {d['status']}": d for d in drafts}
-selected_draft_label = st.selectbox("Select Draft", options=list(draft_options.keys()))
-selected_draft = draft_options[selected_draft_label]
+# Auto-select the first active draft
+selected_draft = active_drafts[0]
+st.write(f"**Active Draft:** {selected_draft['season']} - {selected_draft['status']}")
 
 st.divider()
 
@@ -64,12 +65,14 @@ if uploaded_file:
     with col1:
         if st.button("Refresh Draft Picks"):
             SleeperService.get_draft_picks.clear()
+            SleeperService.get_draft_traded_picks.clear()
             SleeperService.get_drafts_in_league.clear()
             SleeperService.get_draft.clear()
             st.rerun()
 
     # using get_draft_picks which fetches all picks including live ones for active drafts
     picks = SleeperService.get_draft_picks(selected_draft['draft_id'])
+    traded_picks = SleeperService.get_draft_traded_picks(selected_draft['draft_id'])
     drafted_ids = set([str(p['player_id']) for p in picks if p.get('player_id')])
 
     # Determine user's upcoming picks
@@ -78,43 +81,76 @@ if uploaded_file:
     user_slot = None
     if draft_order and user_id in draft_order:
         user_slot = draft_order[user_id]
-    elif selected_draft.get('slot_to_roster_id'):
-        # Fallback to roster ID
+
+    user_roster_id = None
+    if selected_draft.get('slot_to_roster_id'):
         rosters = SleeperService.get_rosters(selected_draft['league_id'])
         user_roster = next((r for r in rosters if r.get('owner_id') == user_id), None)
         if user_roster:
-            roster_id = user_roster['roster_id']
-            for slot_str, r_id in selected_draft['slot_to_roster_id'].items():
-                if r_id == roster_id:
-                    user_slot = int(slot_str)
-                    break
+            user_roster_id = user_roster['roster_id']
+            if user_slot is None:
+                for slot_str, r_id in selected_draft['slot_to_roster_id'].items():
+                    if r_id == user_roster_id:
+                        user_slot = int(slot_str)
+                        break
 
     settings = selected_draft.get('settings', {})
     teams = settings.get('teams', 10)
     rounds = settings.get('rounds', 15)
     reversal_round = settings.get('reversal_round', 0)
     draft_type = selected_draft.get('type', 'snake')
+    slot_to_roster_id = selected_draft.get('slot_to_roster_id', {})
+    season = selected_draft.get('season')
 
     user_picks = []
-    if user_slot:
-        current_pick_no = len(picks) + 1
-        for r in range(1, rounds + 1):
-            if draft_type == 'snake':
-                is_forward = (r % 2 != 0)
-                if reversal_round > 0 and r >= reversal_round:
-                    is_forward = not is_forward
 
-                if is_forward:
-                    pick = (r - 1) * teams + user_slot
-                else:
-                    pick = (r - 1) * teams + (teams - user_slot + 1)
+    current_pick_no = len(picks) + 1
+    total_picks = rounds * teams
+
+    for pick in range(current_pick_no, total_picks + 1):
+        r = (pick - 1) // teams + 1
+        pick_in_round = (pick - 1) % teams + 1
+
+        if draft_type == 'snake':
+            is_forward = (r % 2 != 0)
+            if reversal_round > 0 and r >= reversal_round:
+                is_forward = not is_forward
+
+            if is_forward:
+                original_slot = pick_in_round
             else:
-                # Linear draft
-                pick = (r - 1) * teams + user_slot
+                original_slot = teams - pick_in_round + 1
+        else:
+            original_slot = pick_in_round
 
-            if pick >= current_pick_no:
+        # Try to resolve via trades if slot_to_roster_id is present
+        if slot_to_roster_id and user_roster_id:
+            original_roster_id = slot_to_roster_id.get(str(original_slot))
+
+            if original_roster_id:
+                current_owner_roster_id = original_roster_id
+                changed = True
+                while changed:
+                    changed = False
+                    for trade in traded_picks:
+                        if trade.get('season') == season and trade['round'] == r and trade['roster_id'] == original_roster_id:
+                            if trade['previous_owner_id'] == current_owner_roster_id:
+                                current_owner_roster_id = trade['owner_id']
+                                changed = True
+                                break
+
+                if current_owner_roster_id == user_roster_id:
+                    user_picks.append(pick)
+            else:
+                # Fallback if somehow slot wasn't mapped
+                if original_slot == user_slot:
+                    user_picks.append(pick)
+        else:
+            # Fallback for mock drafts or if no slot_to_roster_id
+            if original_slot == user_slot:
                 user_picks.append(pick)
 
+    if user_slot is not None or user_roster_id is not None:
         if user_picks:
             next_pick = user_picks[0]
             st.info(f"Your next pick: **{next_pick}**. Upcoming picks: {', '.join([str(p) for p in user_picks[:5]])}")

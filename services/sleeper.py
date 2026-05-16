@@ -13,6 +13,16 @@ class SleeperService:
             return response.json()
         return []
 
+    @staticmethod
+    @st.cache_data(ttl=10)
+    def get_draft_traded_picks(draft_id):
+        """Fetch all traded picks in a draft."""
+        url = f"{SleeperService.BASE_URL}/draft/{draft_id}/traded_picks"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        return []
+
 
     @staticmethod
     @st.cache_data(ttl=3600)
