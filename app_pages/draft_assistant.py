@@ -62,11 +62,67 @@ if uploaded_file:
 
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.button("Refresh Draft Picks")
+        if st.button("Refresh Draft Picks"):
+            SleeperService.get_draft_picks.clear()
+            SleeperService.get_drafts_in_league.clear()
+            SleeperService.get_draft.clear()
+            st.rerun()
 
     # using get_draft_picks which fetches all picks including live ones for active drafts
     picks = SleeperService.get_draft_picks(selected_draft['draft_id'])
     drafted_ids = set([str(p['player_id']) for p in picks if p.get('player_id')])
+
+    # Determine user's upcoming picks
+    user_id = st.session_state.user['user_id']
+    draft_order = selected_draft.get('draft_order')
+    user_slot = None
+    if draft_order and user_id in draft_order:
+        user_slot = draft_order[user_id]
+    elif selected_draft.get('slot_to_roster_id'):
+        # Fallback to roster ID
+        rosters = SleeperService.get_rosters(selected_draft['league_id'])
+        user_roster = next((r for r in rosters if r.get('owner_id') == user_id), None)
+        if user_roster:
+            roster_id = user_roster['roster_id']
+            for slot_str, r_id in selected_draft['slot_to_roster_id'].items():
+                if r_id == roster_id:
+                    user_slot = int(slot_str)
+                    break
+
+    settings = selected_draft.get('settings', {})
+    teams = settings.get('teams', 10)
+    rounds = settings.get('rounds', 15)
+    reversal_round = settings.get('reversal_round', 0)
+    draft_type = selected_draft.get('type', 'snake')
+
+    user_picks = []
+    if user_slot:
+        current_pick_no = len(picks) + 1
+        for r in range(1, rounds + 1):
+            if draft_type == 'snake':
+                is_forward = (r % 2 != 0)
+                if reversal_round > 0 and r >= reversal_round:
+                    is_forward = not is_forward
+
+                if is_forward:
+                    pick = (r - 1) * teams + user_slot
+                else:
+                    pick = (r - 1) * teams + (teams - user_slot + 1)
+            else:
+                # Linear draft
+                pick = (r - 1) * teams + user_slot
+
+            if pick >= current_pick_no:
+                user_picks.append(pick)
+
+        if user_picks:
+            next_pick = user_picks[0]
+            st.info(f"Your next pick: **{next_pick}**. Upcoming picks: {', '.join([str(p) for p in user_picks[:5]])}")
+            st.caption(f"Based on your upcoming picks, look for players ranked around {next_pick}.")
+        else:
+            st.info("You have no more picks in this draft.")
+    else:
+        st.info("Could not determine your draft slot. You might not be participating in this draft.")
 
     unmapped = df[df['player_id'].isna()]
     if not unmapped.empty:
