@@ -172,6 +172,21 @@ if uploaded_file:
         color = 'lightgreen' if val == 'Available' else 'lightgray'
         return f'background-color: {color}'
 
+    def highlight_position(val):
+        color_map = {
+            'QB': '#add8e6',
+            'RB': '#ffcccb',
+            'WR': '#ffffe0',
+            'TE': '#ffa07a'
+        }
+        # Check if the value is a string and handle case variations
+        if isinstance(val, str):
+            val_upper = val.strip().upper()
+            color = color_map.get(val_upper, 'white')
+        else:
+            color = 'white'
+        return f'background-color: {color}'
+
     st.subheader("Players By Tier")
 
     if 'tier' in df.columns:
@@ -186,11 +201,14 @@ if uploaded_file:
                 tier_df = tier_df.sort_values(by='rank')
 
             cols_to_show = [player_col]
-            if 'position' in tier_df.columns: cols_to_show.append('position')
+            has_position = 'position' in tier_df.columns
+            if has_position: cols_to_show.append('position')
             if 'rank' in tier_df.columns: cols_to_show.append('rank')
             cols_to_show.append('Status')
 
             styled_df = tier_df[cols_to_show].style.map(highlight_status, subset=['Status'])
+            if has_position:
+                styled_df = styled_df.map(highlight_position, subset=['position'])
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
     else:
         # If no tier column, just show the whole thing
@@ -198,9 +216,12 @@ if uploaded_file:
             df = df.sort_values(by='rank')
 
         cols_to_show = [player_col]
-        if 'position' in df.columns: cols_to_show.append('position')
+        has_position = 'position' in df.columns
+        if has_position: cols_to_show.append('position')
         if 'rank' in df.columns: cols_to_show.append('rank')
         cols_to_show.append('Status')
 
         styled_df = df[cols_to_show].style.map(highlight_status, subset=['Status'])
+        if has_position:
+            styled_df = styled_df.map(highlight_position, subset=['position'])
         st.dataframe(styled_df, hide_index=True, use_container_width=True)
