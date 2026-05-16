@@ -1,6 +1,12 @@
 import streamlit as st
 import pandas as pd
 import json
+import re
+
+
+def clean_name(name):
+    if not isinstance(name, str): return ""
+    return re.sub(r'[^a-z]', '', name.lower())
 
 
 def init_session_state():
